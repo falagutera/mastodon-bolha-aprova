@@ -133,6 +133,12 @@ func (s *Server) Run(ctx context.Context) {
 
 func parseTemplates() (*template.Template, error) {
 	return template.New("").Funcs(template.FuncMap{
+		"failed": func(cs []module.Check) []module.Check {
+			return slices.DeleteFunc(slices.Clone(cs), func(c module.Check) bool { return c.OK })
+		},
+		"passed": func(cs []module.Check) []module.Check {
+			return slices.DeleteFunc(slices.Clone(cs), func(c module.Check) bool { return !c.OK })
+		},
 		"t": func(m map[string]string, key string) string {
 			if v, ok := m[key]; ok {
 				return v

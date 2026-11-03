@@ -49,3 +49,10 @@ fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; 
 .box h3 { margin: .7rem 0 .3rem; font-size: 1rem; }
 .note.small { font-size: .85rem; margin: .2rem 0 .5rem; }
 .edit summary { font-size: .85rem; color: var(--muted); cursor: pointer; }
+
+/* Alerts: silent unless something fired. */
+.alerts { list-style: none; padding: 0; margin: .3rem 0; }
+.alerts li { padding: .45rem .7rem; border-radius: 8px; margin: .35rem 0; background: var(--crit-soft); color: var(--crit); }
+.alerts li small { display: block; color: var(--ink); opacity: .8; }
+.allclear { padding: .45rem .7rem; border-radius: 8px; background: var(--ok-soft); color: var(--ok); margin: .3rem 0; }
+.checked { font-size: .85rem; color: var(--muted); margin: .3rem 0 1rem; }

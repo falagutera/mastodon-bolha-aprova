@@ -43,10 +43,12 @@
 {{range $r.Reviews}}  <li class="v-{{.Verdict}}">@{{.Acct}} <span class="role">{{.Role}}</span> {{t $.T (printf "verdict_%s" .Verdict)}}{{if .Counts}} ✓{{end}}</li>
 {{end}}</ul>{{else}}<p class="note">{{.T.no_reviews}}</p>{{end}}
 
-<h2>{{.T.checks}}</h2>
-<ul class="checks">
-{{range $r.Checks}}  <li class="{{if .OK}}ok{{else}}fail{{end}}">{{if .OK}}✓ {{$ok := printf "check_ok_%s" .Name}}{{if index $.T $ok}}{{index $.T $ok}}{{else}}{{t $.T (printf "check_%s" .Name)}}{{end}}{{else}}⚠ {{t $.T (printf "check_%s" .Name)}}{{end}}{{if and (not .OK) .Detail}} · {{.Detail}}{{end}}</li>
-{{end}}</ul>
+{{$bad := 0}}{{range $r.Checks}}{{if not .OK}}{{$bad = 1}}{{end}}{{end}}
+<h2>{{.T.alerts}}{{if $bad}} <span class="st st-blocked">{{len (failed $r.Checks)}}</span>{{end}}</h2>
+{{if not $bad}}<p class="allclear">✓ {{.T.no_alerts}}</p>{{else}}<ul class="alerts">
+{{range $r.Checks}}{{if not .OK}}  <li class="bad">⚠ {{t $.T (printf "check_%s" .Name)}}{{if .Detail}}<small>{{$d := printf "detail_%s" .Detail}}{{if index $.T $d}}{{index $.T $d}}{{else}}{{.Detail}}{{end}}</small>{{end}}</li>
+{{end}}{{end}}</ul>{{end}}
+{{$ok := passed $r.Checks}}{{if $ok}}<p class="checked">{{if $bad}}{{.T.checked_fine}}{{else}}{{.T.checked}}{{end}}: {{range $i, $c := $ok}}{{if $i}}, {{end}}{{t $.T (printf "checked_%s" $c.Name)}}{{end}}.</p>{{end}}
 
 {{if $r.CanReview}}
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose review box" id="review">
