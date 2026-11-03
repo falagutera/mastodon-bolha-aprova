@@ -351,6 +351,7 @@ type itemView struct {
 type serviceView struct {
 	ID      string     `json:"id"`
 	Name    string     `json:"name"`
+	Color   int        `json:"-"` // palette slot, stable per service
 	Error   string     `json:"error"`
 	Items   []itemView `json:"items"`
 	CanBulk bool       `json:"can_bulk"`
@@ -361,6 +362,18 @@ type profileView struct {
 	Name     string         `json:"name"`
 	Services []serviceView  `json:"services"`
 	Counts   map[string]int `json:"counts"`
+}
+
+// paletteSize matches the .svc-N classes in aprova.css.
+const paletteSize = 6
+
+// color gives each service a slot by its place in the configuration, so it keeps
+// its color on every page.
+func (s *Server) color(id string) int {
+	if i := slices.Index(s.order, id); i >= 0 {
+		return i % paletteSize
+	}
+	return 0
 }
 
 var filters = []string{"new", "reviewing", "awaiting", "escalated"}
@@ -393,6 +406,7 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request, sess sessio
 					svcs[i].Items = append(svcs[i].Items, it)
 				}
 			}
+			svcs[i].Color = s.color(svcs[i].ID)
 			pv.Services = append(pv.Services, svcs[i])
 		}
 		v.Profiles = append(v.Profiles, pv)

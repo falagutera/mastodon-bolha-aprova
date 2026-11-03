@@ -22,3 +22,14 @@ fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; 
 .audit { width: 100%; border-collapse: collapse; font-size: .9rem; } .audit td, .audit th { padding: .35rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 @media (max-width: 760px) { .request { grid-template-columns: 1fr; } .side { border-left: 0; padding-left: 0; } }
 .inline { display: inline; } pre.token { padding: .6rem; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
+
+/* One card per service, each in its own color. */
+.svc { --svc: #3b9fd1; margin: 1rem 0; padding: .4rem 1.1rem .6rem; border-radius: 12px; border: 1px solid var(--line); border-left: 5px solid var(--svc); background: color-mix(in srgb, var(--svc) 7%, var(--surface)); }
+.svc h3 { display: flex; align-items: center; gap: .5rem; color: var(--svc); margin: .6rem 0 .2rem; }
+.svc h3 .dot { width: .7rem; height: .7rem; border-radius: 50%; background: var(--svc); }
+.svc h3 .count { font-size: .8rem; color: var(--ink); border: 1px solid var(--svc); border-radius: 999px; padding: 0 .5rem; }
+.svc .queue li:last-child { border-bottom: 0; }
+.svc .note, .svc .alert { margin: .4rem 0 .6rem; }
+.svc p.note { background: none; border: 0; padding: 0; max-width: none; }
+.svc-0 { --svc: #3b9fd1; } .svc-1 { --svc: #c46fd6; } .svc-2 { --svc: #d9893f; }
+.svc-3 { --svc: #3fae94; } .svc-4 { --svc: #e0628f; } .svc-5 { --svc: #8bb34a; }

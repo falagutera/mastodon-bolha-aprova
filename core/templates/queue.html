@@ -12,7 +12,8 @@
 <section class="profile">
 <h2>{{.Name}} <span class="counts">{{range $k, $n := .Counts}}<span class="st st-{{$k}}">{{t $.T (printf "status_%s" $k)}} {{$n}}</span> {{end}}</span></h2>
 {{range .Services}}{{$svc := .}}
-<h3>{{.Name}}</h3>
+<div class="svc svc-{{.Color}}">
+<h3><span class="dot" aria-hidden="true"></span>{{.Name}}{{if .Items}} <span class="count">{{len .Items}}</span>{{end}}</h3>
 {{if .Error}}<p class="alert">{{t $.T (printf "service_%s" .Error)}}</p>
 {{else if not .Items}}<p class="note">{{$.T.queue_empty}}</p>
 {{else}}<form method="post" action="/bulk-reject">
@@ -35,7 +36,9 @@
   <button type="submit" class="button danger">{{$.T.bulk_reject}}</button>
 </details>{{end}}
 </form>
-{{end}}{{end}}
+{{end}}
+</div>
+{{end}}
 </section>
 {{end}}
 {{template "foot" .}}
