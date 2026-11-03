@@ -345,7 +345,7 @@ func (s *Server) apply(ctx context.Context, tx pgx.Tx, kind string, sess session
 		}
 		out := outcome{done: "reviewed"}
 		if verdict == verdictInfo {
-			if err := s.askApplicant(ctx, p, svc, q, body); err != nil {
+			if err := s.askApplicant(ctx, tx, p, svc, st, q, body); err != nil {
 				log.Printf("info mail: %v", err)
 				return fail("mail")
 			}
@@ -556,7 +556,9 @@ func (s *Server) execute(ctx context.Context, tx pgx.Tx, svc *service, sess sess
 	return "ok", setDecision(ctx, tx, st, decision, sess.Acct)
 }
 
-func (s *Server) askApplicant(ctx context.Context, p *Profile, svc *service, q module.Request, question string) error {
+// askApplicant e-mails the question and remembers its Message-ID and the
+// applicant's address (hashed) so the answer can find its way back.
+func (s *Server) askApplicant(ctx context.Context, tx pgx.Tx, p *Profile, svc *service, st reqState, q module.Request, question string) error {
 	if s.mailer == nil || p.Mail.From == "" {
 		return errNoMail
 	}
@@ -565,6 +567,11 @@ func (s *Server) askApplicant(ctx context.Context, p *Profile, svc *service, q m
 	}
 	m, err := applicantMail(p, "info", mailData{Username: q.Username, Service: svc.cfg.Name, Question: question}, q.Email)
 	if err != nil {
+		return err
+	}
+	m.MessageID = newMessageID(p.Mail.From)
+	if _, err := tx.Exec(ctx, `INSERT INTO asked (message_id, email_hash, service, request_id, username, round)
+		VALUES ($1, $2, $3, $4, $5, $6)`, m.MessageID, emailHash(q.Email), svc.id, q.ID, q.Username, st.Round); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)

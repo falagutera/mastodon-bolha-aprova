@@ -5,7 +5,8 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 - **Reviews like a pull request:** "I would approve", "I would reject" or "needs more information". A quorum of approvals (2 by default) approves on its own, with the token of the moderator whose review completes it. A reject blocks it; approve and reject at once escalate.
 - **Checks:** signs of automated sign-ups and disposable e-mail (domain or MX host) keep the quorum from approving.
 - **Discussion:** internal comments on each request. The applicant never sees them.
-- **Ask the applicant:** an e-mail with the moderator's question; the request waits, and the answer starts a new round of reviews.
+- **Ask the applicant:** an e-mail with the moderator's question; the request waits, and the answer starts a new round of reviews. With `APROVA_IMAP_*` set, aprova reads the reply-to mailbox every minute and attaches the answer itself: it matches the question's Message-ID, accepts only the applicant's own address (kept as a hash), and drops the quoted text. Moderators can still paste an answer by hand.
+- **Edits:** authors fix their own comments; the old text goes to the decision log.
 - **Escalation:** to the senior roles of a profile, who then decide alone.
 - **Notices:** a digest of pending sign-ups and escalations, by Mattermost webhook and/or direct messages from a bot account on the instance. Both off unless configured; each moderator can turn the bot's messages off in the panel. Messages never carry e-mails or reasons.
 - **Rejection:** with an internal reason. The applicant gets a standard, configurable message, never the reason. Modules reject without messaging the applicant, so aprova is the only voice.

@@ -17,7 +17,7 @@
 
 <h2 id="discussion">{{.T.discussion}}</h2>
 {{if $r.Comments}}<ol class="comments">
-{{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
+{{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else if eq .Kind "info_answer"}}{{$.T.applicant}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
     <p>{{if eq .Kind "system"}}{{t $.T (printf "system_%s" .Body)}}{{else}}{{.Body}}{{end}}</p>
     {{if .Mine}}<details class="edit"><summary>{{$.T.edit}}</summary>
     <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/edit" class="compose">

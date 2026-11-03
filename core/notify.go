@@ -29,6 +29,8 @@ type Mailer interface {
 
 type Message struct {
 	From, To, ReplyTo, Subject, Body string
+	// MessageID, without <>, lets a reply be matched to this message. Made up when empty.
+	MessageID string
 }
 
 var errNoMail = errors.New("e-mail is not configured")
@@ -64,8 +66,12 @@ func (m Message) bytes(now time.Time) []byte {
 	if m.ReplyTo != "" {
 		fmt.Fprintf(&b, "Reply-To: %s\r\n", m.ReplyTo)
 	}
-	fmt.Fprintf(&b, "Subject: %s\r\nDate: %s\r\nMessage-ID: <%s@%s>\r\n", mime.QEncoding.Encode("utf-8", m.Subject),
-		now.Format(time.RFC1123Z), randomToken()[:24], host)
+	id := m.MessageID
+	if id == "" {
+		id = randomToken()[:24] + "@" + host
+	}
+	fmt.Fprintf(&b, "Subject: %s\r\nDate: %s\r\nMessage-ID: <%s>\r\n", mime.QEncoding.Encode("utf-8", m.Subject),
+		now.Format(time.RFC1123Z), id)
 	b.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
 	w := quotedprintable.NewWriter(&b)
 	w.Write([]byte(strings.ReplaceAll(m.Body, "\n", "\r\n")))

@@ -297,4 +297,11 @@ func (s *Server) sweep(ctx context.Context) {
 	if err := s.db.finishSessions(ctx, s.tokenBox, s.revokeToken); err != nil {
 		log.Printf("sweep: %v", err)
 	}
+	// Questions and handled messages are only needed while answers may come.
+	if _, err := s.db.pool.Exec(ctx, `DELETE FROM asked WHERE at < now() - interval '180 days'`); err != nil {
+		log.Printf("sweep asked: %v", err)
+	}
+	if _, err := s.db.pool.Exec(ctx, `DELETE FROM inbound WHERE at < now() - interval '180 days'`); err != nil {
+		log.Printf("sweep inbound: %v", err)
+	}
 }

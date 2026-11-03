@@ -47,6 +47,7 @@ type Server struct {
 	stateBox *box
 	checks   *checker
 	mailer   Mailer
+	inbox    Inbox
 	mm       *mattermost
 }
 
@@ -54,7 +55,9 @@ type Server struct {
 type Options struct {
 	Client *http.Client
 	Mailer Mailer
-	MX     func(ctx context.Context, domain string) ([]*net.MX, error)
+	// Inbox replaces the IMAP mailbox, for tests.
+	Inbox Inbox
+	MX    func(ctx context.Context, domain string) ([]*net.MX, error)
 }
 
 // New builds the server: it opens the database and every enabled service.
@@ -80,6 +83,10 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 		checks: newChecker(cfg.Checks), mailer: opt.Mailer, mm: &mattermost{client: client}}
 	if opt.MX != nil {
 		s.checks.lookupMX = opt.MX
+	}
+	s.inbox = opt.Inbox
+	if s.inbox == nil && cfg.IMAPHost != "" {
+		s.inbox = &imapInbox{host: cfg.IMAPHost, port: cfg.IMAPPort, user: cfg.IMAPUser, pass: cfg.IMAPPass}
 	}
 	if s.mailer == nil && cfg.SMTPEnabled() {
 		s.mailer = &smtpMailer{host: cfg.SMTPHost, port: cfg.SMTPPort, user: cfg.SMTPUser, pass: cfg.SMTPPass, mode: cfg.SMTPTLS}
@@ -114,6 +121,7 @@ func (s *Server) Run(ctx context.Context) {
 				return
 			case <-t.C:
 				s.sweep(ctx)
+				s.readReplies(ctx)
 			}
 		}
 	}()

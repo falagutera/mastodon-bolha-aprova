@@ -97,3 +97,22 @@ GRANT SELECT, INSERT ON comments, audit_log TO aprova;
 -- goes to the audit log, which stays append-only.
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS edited_at timestamptz;
 GRANT UPDATE (body, edited_at) ON comments TO aprova;
+
+-- 0.4.0: answers read from the reply-to mailbox. asked remembers each question
+-- e-mailed (its Message-ID, and the applicant's address only as a hash);
+-- inbound keeps each message from being taken twice by two replicas.
+CREATE TABLE IF NOT EXISTS asked (
+  message_id text PRIMARY KEY,
+  email_hash text NOT NULL,
+  service    text NOT NULL,
+  request_id text NOT NULL,
+  username   text NOT NULL,
+  round      integer NOT NULL,
+  at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS asked_email ON asked (email_hash, at DESC);
+CREATE TABLE IF NOT EXISTS inbound (
+  message_id text PRIMARY KEY,
+  at         timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, DELETE ON asked, inbound TO aprova;
