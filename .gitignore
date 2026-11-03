@@ -2,3 +2,4 @@
 *.local.yaml
 data/
 /aprova
+/aprova-agent

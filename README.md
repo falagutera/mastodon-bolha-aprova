@@ -20,9 +20,12 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 |---|---|---|
 | `mastodon` | Mastodon | The moderator's own token (admin scopes), or a service account's |
 | `gitlab` | GitLab with admin approval of new users | Admin token: GitLab has nothing smaller. The module only calls list, approve and reject, and a test fails if it calls anything else |
+| `lemmy` | Lemmy with "require application" (tested on 0.19) | JWT of a dedicated admin account. Lemmy e-mails the applicant on approve and reject and can't be told not to, so aprova skips its own rejection e-mail; no deny_reason is ever sent |
+| `forgejo` | Forgejo with manual confirmation of new accounts (`REGISTER_MANUAL_CONFIRM`) | Site admin token (`read:admin`, `write:admin`, `read:user`). Approving activates the account; rejecting deletes it (purge), only if it is still inactive and never signed in. Forgejo sends no e-mail either way. A test fails if the module calls anything but these user paths |
+| `peertube` | PeerTube with registration approval (8.3+) | `token_env` holds `username:password` of a dedicated Moderator user (password grant; the token is kept in memory and refreshed). Reject is silent; accept lets PeerTube send its welcome |
 | `agent` | Apps with no approval API, through `aprova-agent` (see [The agent](#the-agent)) | A secret shared with the agent; every request is signed |
 
-`aprova-agent` recipes: `pixelfed` (curated onboarding).
+`aprova-agent` recipes: `pixelfed` (curated onboarding), `bookwyrm` (invite requests), `friendica` (sign-ups awaiting approval).
 
 Choose the modules in the configuration (`modules: [mastodon, gitlab]` or `all`). A module that isn't listed registers no route, opens no connection and reads no secret. To leave one out of the binary: `go build -tags no_gitlab`.
 
@@ -120,15 +123,21 @@ services:
 
 | Variable | Default | |
 |---|---|---|
-| `APROVA_AGENT_RECIPE` | | `pixelfed` |
+| `APROVA_AGENT_RECIPE` | | `pixelfed`, `bookwyrm` or `friendica` |
 | `APROVA_AGENT_SECRET` | | Shared with aprova, 32+ characters |
 | `APROVA_AGENT_LISTEN` | `:8090` | |
 | `APROVA_AGENT_TMP` | system temp dir | Where the recipe file is written |
 | `APROVA_AGENT_PIXELFED_ROOT` | `/var/www/html` | Pixelfed's code |
 | `APROVA_AGENT_PHP` | `php` | |
+| `APROVA_AGENT_BOOKWYRM_ROOT` | `/app` | BookWyrm's code |
+| `APROVA_AGENT_BOOKWYRM_INVITER` | first superuser | Local user that owns the invites |
+| `APROVA_AGENT_PYTHON` | `python3` | |
+| `APROVA_AGENT_FRIENDICA_ROOT` | `/var/www/html` | Friendica's code |
 
 Recipes:
 
+- **bookwyrm:** invite requests (tested on 0.9.4). There is no username yet: the person picks one through the invite link, so the queue shows the e-mail's local part. Approve creates a one-use invite and BookWyrm e-mails the link, as the admin page does. Reject sets "ignored" (never toggles it back); BookWyrm sends nothing.
+- **friendica:** sign-ups awaiting approval (tested on 2026.05). Loads Friendica as `bin/console` does and calls `User::allow` / `User::deny`. Approve sends Friendica's welcome (it includes the password the person chose; Friendica has no way to turn that off). Deny deletes the pending account and sends nothing.
 - **pixelfed:** curated onboarding (tested on 0.15.2). Lists what the admin panel's "open" filter shows (e-mail confirmed, not waiting on the applicant). Approves and rejects by calling Pixelfed's own `AdminCuratedRegisterController`, so the account and the welcome e-mail are Pixelfed's; reject is `reject-silent`.
 
 ## Versions

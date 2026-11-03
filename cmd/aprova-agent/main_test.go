@@ -146,3 +146,16 @@ esac`
 		t.Errorf("recipe file is writable: %v", fi.Mode())
 	}
 }
+
+func TestEveryRecipeLoads(t *testing.T) {
+	t.Setenv("APROVA_AGENT_TMP", t.TempDir())
+	for _, name := range []string{"pixelfed", "bookwyrm", "friendica"} {
+		r, err := newRecipe(name)
+		if err != nil || r.name() != name || !r.caps().SilentReject {
+			t.Errorf("%s: %v %+v", name, err, r)
+		}
+	}
+	if _, err := newRecipe("other"); err == nil {
+		t.Error("unknown recipe accepted")
+	}
+}

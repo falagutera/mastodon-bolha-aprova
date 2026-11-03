@@ -26,7 +26,7 @@ func TestConfigRefusesWhatIsUnclear(t *testing.T) {
 	get := func(k string) string { return env[k] }
 	for name, change := range map[string][2]string{
 		"no modules":          {"modules: [mastodon, gitlab]", "modules: []"},
-		"unknown module":      {"modules: [mastodon, gitlab]", "modules: [mastodon, gitlab, lemmy]"},
+		"unknown module":      {"modules: [mastodon, gitlab]", "modules: [mastodon, gitlab, nosuchapp]"},
 		"service off":         {"modules: [mastodon, gitlab]", "modules: [mastodon]"},
 		"moderator elsewhere": {"    url: https://sister.example\n    auth: token", "    url: https://sister.example\n    auth: moderator"},
 		"two profiles":        {"services: [code]", "services: [code, main]"},

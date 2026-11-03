@@ -116,10 +116,14 @@ func newRecipe(name string) (recipe, error) {
 	switch name {
 	case "pixelfed":
 		return newPixelfed()
+	case "bookwyrm":
+		return newBookwyrm()
+	case "friendica":
+		return newFriendica()
 	case "":
-		return nil, errors.New("APROVA_AGENT_RECIPE is empty (known: pixelfed)")
+		return nil, errors.New("APROVA_AGENT_RECIPE is empty (known: pixelfed, bookwyrm, friendica)")
 	default:
-		return nil, fmt.Errorf("unknown recipe %q (known: pixelfed)", name)
+		return nil, fmt.Errorf("unknown recipe %q (known: pixelfed, bookwyrm, friendica)", name)
 	}
 }
 
