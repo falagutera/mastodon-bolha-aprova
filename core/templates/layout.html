@@ -1,0 +1,41 @@
+{{define "head"}}<!doctype html>
+<html lang="{{.T.lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{.T.title}} · {{.Domain}}</title>
+<link rel="stylesheet" href="/assets/artefatos.css">
+<link rel="stylesheet" href="/assets/aprova.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="topbar">
+    <span class="eyebrow">{{.T.title}} · {{.Domain}}</span>
+    <span class="langsel"><a href="/?lang=pt"{{if eq .Lang "pt-BR"}} class="on"{{end}}>PT</a> <a href="/?lang=en"{{if eq .Lang "en"}} class="on"{{end}}>EN</a></span>
+  </div>
+{{if .Acct}}  <nav class="tabs">
+    <a href="/queue"{{if eq .Nav "queue"}} class="on" aria-current="page"{{end}}>{{.T.nav_queue}}</a>
+    <a href="/audit"{{if eq .Nav "audit"}} class="on" aria-current="page"{{end}}>{{.T.nav_audit}}</a>
+    <form method="post" action="/api-token" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="link">{{.T.nav_token}}</button></form>
+    <form method="post" action="/logout" class="logout">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <span class="who">@{{.Acct}} · {{.Role}}</span> <button type="submit" class="link">{{.T.logout}}</button>
+    </form>
+  </nav>
+{{end}}</header>
+<main>
+{{if .Flash}}<p class="flash" role="status">{{.Flash}}</p>{{end}}
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
+{{end}}
+{{define "foot"}}</main>
+<footer class="foot">
+  <a href="https://gitlab.gutocarvalho.net/open/aprova">{{.T.source}}</a>
+  {{if .Modules}}<span>{{.T.modules}}: {{range $i, $m := .Modules}}{{if $i}}, {{end}}{{$m}}{{end}}</span>{{end}}
+  <span class="version">aprova {{.Version}}</span>
+</footer>
+</div>
+</body>
+</html>
+{{end}}

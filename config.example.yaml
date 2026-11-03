@@ -1,0 +1,79 @@
+# aprova configuration. Secrets never go here: they come from the environment
+# (see .env.example), and this file only names the variables.
+
+# Moderators sign in with their account on this Mastodon instance. Roles below
+# are role names there.
+instance: https://example.social
+base_url: https://aprova.example.social
+lang: en            # en or pt-BR
+
+# Modules to load: one, some, or all. Nothing else runs, opens connections or
+# reads secrets. An empty list stops aprova at startup.
+modules: [mastodon, gitlab]
+
+services:
+  # auth: moderator acts with the signed-in moderator's own token, so the
+  # instance's moderation log names the person. Only on the sign-in instance.
+  main:
+    module: mastodon
+    name: example.social
+    url: https://example.social
+    auth: moderator
+    # Optional read-only token (admin:read:accounts) so the Mattermost digest can
+    # count pending sign-ups when nobody is signed in.
+    # digest_token_env: APROVA_MAIN_DIGEST_TOKEN
+
+  # auth: token uses a service account, for instances the team has no accounts on.
+  sister:
+    module: mastodon
+    name: sister.example
+    url: https://sister.example
+    auth: token
+    token_env: APROVA_SISTER_TOKEN
+
+  # GitLab needs an admin token: use a dedicated admin user just for this.
+  code:
+    module: gitlab
+    name: code.example
+    url: https://code.example
+    auth: token
+    token_env: APROVA_GITLAB_TOKEN
+
+profiles:
+  community:
+    name: Community
+    services: [main, sister]
+    approve: [Moderator, Admin, Owner]     # review and decide one by one
+    bulk_reject: [Admin, Owner]            # reject many at once
+    escalate_to: [Admin, Owner]            # decide escalated requests
+    review:
+      quorum: 2                            # approvals that approve on their own
+      on_conflict: escalate                # approve and reject at once: escalate, or block
+      reset_on_new_info: true              # the applicant's answer starts a new round
+      required_checks: [bot_signal, disposable_email]
+    mail:
+      from: "Example <aprova@example.social>"
+      reply_to: "signups@example.social"
+      lang: en
+      # Leave these out to use the built-in texts. Fields: .Username .Service .Question
+      # reject_subject: "Your request to join {{.Service}}"
+      # reject_body: |
+      #   Hello, thank you for your interest in {{.Service}}. At the moment we can't accept your request.
+    # Mattermost incoming webhook for the digest and escalations. Off when unset.
+    # mattermost_webhook_env: APROVA_COMMUNITY_MATTERMOST
+    # Direct messages from a bot account on the sign-in instance (token with
+    # write:statuses). Off when unset; each person can turn them off in the panel.
+    # mastodon_dm:
+    #   token_env: APROVA_BOT_TOKEN
+    #   recipients: [ana, bia]              # the digest of pending sign-ups
+    #   escalation_recipients: [carla]      # escalations
+  infra:
+    name: Infrastructure
+    services: [code]
+    approve: [Admin, Owner]
+    bulk_reject: [Admin, Owner]
+    escalate_to: [Admin, Owner]
+
+checks:
+  disposable_domains: [tinyhost.shop]      # also matched against the e-mail domain's MX hosts
+  info_stale_days: 7

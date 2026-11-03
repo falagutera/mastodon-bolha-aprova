@@ -1,0 +1,47 @@
+# Builds the image and publishes it to the images group (registry.gutocarvalho.net/images/aprova).
+# The version is in the VERSION file. Tags: X.Y.Z-BUILD (immutable, pin this one), X.Y.Z and latest.
+stages: [test, build]
+
+test:
+  stage: test
+  image: golang:1.26-alpine
+  services:
+    - name: postgres:17-alpine
+      alias: postgres
+  variables:
+    CGO_ENABLED: "0"
+    POSTGRES_PASSWORD: admin
+    PGPASSWORD: admin
+    APROVA_TEST_DB_HOST: postgres
+    APROVA_TEST_DB_PORT: "5432"
+  before_script:
+    - apk add --no-cache postgresql17-client
+    - until pg_isready -h postgres -U postgres; do sleep 1; done
+    - psql -h postgres -U postgres -c "CREATE ROLE aprova LOGIN PASSWORD 'aprova'" -c "CREATE DATABASE aprova"
+    - psql -h postgres -U postgres -d aprova -v ON_ERROR_STOP=1 -f schema.sql
+  script:
+    - test -z "$(gofmt -l .)"
+    - go vet ./...
+    - go test -p 1 ./...
+    # Each module can be left out of a build.
+    - go build -tags no_gitlab ./... && go build -tags no_mastodon ./...
+    - go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+    - "$(go env GOPATH)/bin/govulncheck ./..."
+
+build:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - echo "$IMAGES_REGISTRY_PASSWORD" | docker login -u "$IMAGES_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - V="$(cat VERSION)"
+    - docker build --pull -q --build-arg "BUILD=$CI_PIPELINE_ID" -t "registry.gutocarvalho.net/images/aprova:$V-$CI_PIPELINE_ID" .
+    - for t in "$V" latest; do docker tag "registry.gutocarvalho.net/images/aprova:$V-$CI_PIPELINE_ID" "registry.gutocarvalho.net/images/aprova:$t"; done
+    - for t in "$V-$CI_PIPELINE_ID" "$V" latest; do docker push -q "registry.gutocarvalho.net/images/aprova:$t"; done
+    - echo "published registry.gutocarvalho.net/images/aprova:$V-$CI_PIPELINE_ID"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

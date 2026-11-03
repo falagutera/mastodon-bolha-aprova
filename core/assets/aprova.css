@@ -1,0 +1,24 @@
+.tabs { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 0; border-bottom: 1px solid var(--line); }
+.tabs a.on, .filters a.on, .langsel a.on { font-weight: 600; text-decoration: underline; }
+.logout { margin-left: auto; display: flex; gap: .5rem; align-items: center; }
+.who { font-weight: 600; } .note, .when, .role, .email { color: var(--muted); }
+.filters { display: flex; gap: .9rem; flex-wrap: wrap; }
+.queue { list-style: none; padding: 0; }
+.queue li { padding: .6rem 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: .3rem .8rem; align-items: baseline; }
+.queue .reason { flex-basis: 100%; margin: .2rem 0 0; overflow-wrap: anywhere; }
+.st { font-size: .82rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--line); }
+.st-ready, .v-approve { color: #57c27a; } .st-blocked, .v-reject, .fail, .flag { color: #e08a83; }
+.st-escalated { color: #e3b341; } .st-awaiting { color: #7fa7e0; }
+.flag { font-size: .82rem; }
+.request { display: grid; grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); gap: 2rem; }
+.side { border-left: 1px solid var(--line); padding-left: 1.2rem; }
+.side ul { list-style: none; padding: 0; }
+.facts dt { color: var(--muted); } .facts dd { margin: 0 0 .6rem; overflow-wrap: anywhere; }
+.comments { list-style: none; padding: 0; } .comments li { padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.comments p { margin: .25rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.compose label { display: block; margin: .5rem 0; } .compose textarea { width: 100%; min-height: 4.5rem; }
+fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; }
+.button.danger { border-color: #e08a83; }
+.audit { width: 100%; border-collapse: collapse; font-size: .9rem; } .audit td, .audit th { padding: .35rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+@media (max-width: 760px) { .request { grid-template-columns: 1fr; } .side { border-left: 0; padding-left: 0; } }
+.inline { display: inline; } pre.token { padding: .6rem; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }

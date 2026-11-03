@@ -1,0 +1,7 @@
+{{template "head" .}}
+<h1>{{.T.token_title}}</h1>
+<p>{{.T.token_help}}</p>
+<pre class="token">{{.Message}}</pre>
+<p class="note">{{.T.token_note}}</p>
+<pre>curl -H "Authorization: Bearer {{.Message}}" https://{{.Domain}}/api/v1/queue</pre>
+{{template "foot" .}}

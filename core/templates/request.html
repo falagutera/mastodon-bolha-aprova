@@ -1,0 +1,90 @@
+{{template "head" .}}{{$r := .Req}}{{$csrf := .CSRF}}
+<p><a href="/queue">← {{.T.nav_queue}}</a></p>
+<div class="request">
+<div class="main">
+<h1>@{{$r.Username}} <span class="service">{{$r.ServiceName}}</span></h1>
+{{if $r.Pending}}
+<dl class="facts">
+  <dt>{{.T.email}}</dt><dd>{{$r.Email}}</dd>
+  <dt>{{.T.created}}</dt><dd>{{$r.Created}}</dd>
+  <dt>{{.T.reason}}</dt><dd class="reason">{{$r.Reason}}</dd>
+</dl>
+{{if $r.Escalated}}<p class="alert">{{.T.escalated_note}}</p>{{end}}
+{{if $r.Awaiting}}<p class="flash">{{.T.awaiting_note}} {{$r.Awaiting}}</p>{{end}}
+{{else}}
+<p class="flash">{{.T.decided}}: {{if $r.Decision}}{{t .T (printf "decision_%s" $r.Decision)}}{{else}}{{.T.decision_gone}}{{end}}{{if $r.DecidedBy}} · @{{$r.DecidedBy}}{{end}}</p>
+{{end}}
+
+<h2>{{.T.discussion}}</h2>
+{{if $r.Comments}}<ol class="comments">
+{{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}
+    <p>{{if eq .Kind "system"}}{{t $.T (printf "system_%s" .Body)}}{{else}}{{.Body}}{{end}}</p></li>
+{{end}}</ol>{{else}}<p class="note">{{.T.no_comments}}</p>{{end}}
+
+{{if $r.CanReview}}
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/comment" class="compose">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <label>{{.T.comment}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <button type="submit" class="button">{{.T.send}}</button>
+</form>
+{{end}}
+</div>
+
+<aside class="side">
+{{if $r.Pending}}
+<h2>{{.T.reviews}} <span class="quorum">{{$r.Tally.Approvals}}/{{$r.Tally.Needed}}</span></h2>
+{{if $r.Reviews}}<ul class="reviews">
+{{range $r.Reviews}}  <li class="v-{{.Verdict}}">@{{.Acct}} <span class="role">{{.Role}}</span> {{t $.T (printf "verdict_%s" .Verdict)}}{{if .Counts}} ✓{{end}}</li>
+{{end}}</ul>{{else}}<p class="note">{{.T.no_reviews}}</p>{{end}}
+
+<h2>{{.T.checks}}</h2>
+<ul class="checks">
+{{range $r.Checks}}  <li class="{{if .OK}}ok{{else}}fail{{end}}">{{if .OK}}✓{{else}}⚠{{end}} {{t $.T (printf "check_%s" .Name)}}{{if and (not .OK) .Detail}} · {{.Detail}}{{end}}</li>
+{{end}}</ul>
+
+{{if $r.CanReview}}
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <fieldset><legend>{{.T.review}}</legend>
+  <label class="check"><input type="radio" name="verdict" value="approve" required> {{if $r.WouldApprove}}{{.T.review_approve_quorum}}{{else}}{{.T.review_approve}}{{end}}</label>
+  <label class="check"><input type="radio" name="verdict" value="reject"> {{.T.review_reject}}</label>
+  {{if .Mail}}<label class="check"><input type="radio" name="verdict" value="info"> {{.T.review_info}}</label>{{end}}
+  </fieldset>
+  <label>{{.T.review_note}}{{if .Mail}} / {{.T.question}}{{end}} <textarea name="body" maxlength="4000"></textarea></label>
+  <button type="submit" class="button">{{.T.send}}</button>
+</form>
+{{if $r.Awaiting}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/answer" class="compose">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <label>{{.T.answer}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <p class="note">{{.T.answer_help}}</p>
+  <button type="submit" class="button">{{.T.send}}</button>
+</form>{{end}}
+{{if not $r.Escalated}}<details><summary>{{.T.escalate}}</summary>
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/escalate" class="compose">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <label>{{.T.escalate_why}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <button type="submit" class="button">{{.T.escalate}}</button>
+</form></details>{{end}}
+{{end}}
+{{if $r.CanDeescalate}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/deescalate"><input type="hidden" name="csrf" value="{{$csrf}}"><button type="submit" class="link">{{.T.deescalate}}</button></form>{{end}}
+
+{{if $r.CanDecide}}
+<details><summary>{{.T.approve_now}}</summary>
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/approve" class="compose">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <label>{{.T.approve_note}} <textarea name="body" maxlength="4000"></textarea></label>
+  {{if $r.SendsWelcome}}<p class="note">{{.T.welcome_note}}</p>{{end}}
+  <button type="submit" class="button">{{.T.approve_now}}</button>
+</form></details>
+<details><summary>{{.T.reject_now}}</summary>
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/reject" class="compose">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <label>{{.T.reject_reason}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <p class="note">{{if $r.SilentReject}}{{.T.reject_mail}}{{else}}{{.T.reject_app_mails}}{{end}}</p>
+  <button type="submit" class="button danger">{{.T.reject_now}}</button>
+</form></details>
+{{end}}
+{{end}}
+</aside>
+</div>
+{{template "foot" .}}
