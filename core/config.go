@@ -208,6 +208,11 @@ func (c *Config) validate(getenv func(string) string) error {
 			return fmt.Errorf("config: service %s uses module %q, which is not in modules", id, s.Module)
 		}
 		su, ok := httpsURL(strings.TrimRight(s.URL, "/"))
+		// An agent may be on plain http inside a private network: its requests
+		// are signed, and it holds nothing the app doesn't.
+		if !ok && s.Module == "agent" && su != nil && su.Scheme == "http" && su.Host != "" && su.User == nil && su.RawQuery == "" && (su.Path == "" || su.Path == "/") {
+			ok = true
+		}
 		if !ok {
 			return fmt.Errorf("config: service %s: url must be https", id)
 		}

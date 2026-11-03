@@ -19,6 +19,9 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 |---|---|---|
 | `mastodon` | Mastodon | The moderator's own token (admin scopes), or a service account's |
 | `gitlab` | GitLab with admin approval of new users | Admin token: GitLab has nothing smaller. The module only calls list, approve and reject, and a test fails if it calls anything else |
+| `agent` | Apps with no approval API, through `aprova-agent` (see [The agent](#the-agent)) | A secret shared with the agent; every request is signed |
+
+`aprova-agent` recipes: `pixelfed` (curated onboarding).
 
 Choose the modules in the configuration (`modules: [mastodon, gitlab]` or `all`). A module that isn't listed registers no route, opens no connection and reads no secret. To leave one out of the binary: `go build -tags no_gitlab`.
 
@@ -57,6 +60,75 @@ Requests are only shown while pending. The module's credentials can read any acc
 | `GET /api/v1/requests/{service}/{id}` | One request: checks, reviews, discussion, what you may do |
 | `POST /api/v1/requests/{service}/{id}/{action}` | `review` (`verdict`: approve, reject, info), `approve`, `reject`, `escalate`, `deescalate`, `answer`, `comment`; JSON body `{"verdict": "...", "body": "..."}` |
 | `GET /api/v1/audit` | Decision log of the visible profiles |
+
+## The agent
+
+Some apps have no API to approve sign-ups: their admin panel is the only way in. For those, `aprova-agent` runs next to the app, inside the app's own image and with the app's own configuration, and runs a fixed recipe that calls the app's own code. aprova reaches it through the `agent` module.
+
+- It takes no code or commands from the network: a recipe is a fixed program built into the binary, and the only input that reaches it is a request id that passed a strict pattern.
+- Every request is signed with HMAC-SHA256 over method, path, time and body, with a secret shared with aprova (32 characters or more). It refuses unsigned requests and those more than a minute off its clock. A signature for one id or action is no good for another.
+- One decision at a time, and each recipe checks the request is still pending, under a lock, before acting.
+- It holds nothing the app doesn't: its secrets are the app's own environment, plus the shared secret.
+- Reject is always silent in the app; aprova sends its own message.
+
+The contract is in `wire/wire.go`, so an agent can also be written in another language.
+
+### Install
+
+The `aprova` image carries the agent at `/aprova-agent`. The image is distroless, so an init container copies the binary into a shared volume, and the agent then runs in a container made from the app's image:
+
+```yaml
+initContainers:
+- name: install-agent
+  image: registry.gutocarvalho.net/images/aprova:<version>
+  command: ["/aprova-agent", "-install", "/agent/aprova-agent"]
+  volumeMounts: [{ name: agent, mountPath: /agent }]
+containers:
+- name: aprova-agent
+  image: <the app's own image and tag>
+  command: ["/agent/aprova-agent"]
+  envFrom: [<the same ConfigMaps and Secrets as the app>]
+  env:
+  - { name: APROVA_AGENT_RECIPE, value: pixelfed }
+  - { name: APROVA_AGENT_SECRET, valueFrom: { secretKeyRef: { name: aprova-agent, key: secret } } }
+  ports: [{ containerPort: 8090 }]
+  volumeMounts:
+  - { name: agent, mountPath: /agent, readOnly: true }
+  - { name: tmp, mountPath: /tmp }   # the recipe file is written here
+volumes:
+- { name: agent, emptyDir: {} }
+- { name: tmp, emptyDir: {} }
+```
+
+Run it as its own Deployment rather than inside the app's pods, so restarting one never touches the other. Then:
+
+1. Generate the shared secret (`openssl rand -hex 32`) and give it to both sides.
+2. Let only aprova reach port 8090 (a NetworkPolicy in Kubernetes). Plain http is accepted for the `agent` module because requests are signed, but it carries applicants' e-mails: keep it inside a private network, or put TLS in front.
+3. Add the service to aprova:
+
+```yaml
+modules: [mastodon, agent]
+services:
+  photos:
+    module: agent
+    name: photos.example
+    url: http://aprova-agent.photos.svc.cluster.local:8090
+    auth: token
+    token_env: APROVA_PHOTOS_AGENT_SECRET
+```
+
+| Variable | Default | |
+|---|---|---|
+| `APROVA_AGENT_RECIPE` | | `pixelfed` |
+| `APROVA_AGENT_SECRET` | | Shared with aprova, 32+ characters |
+| `APROVA_AGENT_LISTEN` | `:8090` | |
+| `APROVA_AGENT_TMP` | system temp dir | Where the recipe file is written |
+| `APROVA_AGENT_PIXELFED_ROOT` | `/var/www/html` | Pixelfed's code |
+| `APROVA_AGENT_PHP` | `php` | |
+
+Recipes:
+
+- **pixelfed:** curated onboarding (tested on 0.15.2). Lists what the admin panel's "open" filter shows (e-mail confirmed, not waiting on the applicant). Approves and rejects by calling Pixelfed's own `AdminCuratedRegisterController`, so the account and the welcome e-mail are Pixelfed's; reject is `reject-silent`.
 
 ## Versions
 
