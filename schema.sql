@@ -92,3 +92,8 @@ CREATE TABLE IF NOT EXISTS prefs (
 -- Replace aprova with your app user if it has another name.
 GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, requests, reviews, digests, prefs TO aprova;
 GRANT SELECT, INSERT ON comments, audit_log TO aprova;
+
+-- 0.3.0: authors fix their own comments. Only the text changes; the old text
+-- goes to the audit log, which stays append-only.
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS edited_at timestamptz;
+GRANT UPDATE (body, edited_at) ON comments TO aprova;

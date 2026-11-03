@@ -43,3 +43,9 @@ fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; 
 .review:has(.needs-text:checked):has(textarea:placeholder-shown) button[type=submit],
 .compose:has(textarea[required]:placeholder-shown) button[type=submit] { opacity: .45; pointer-events: none; cursor: not-allowed; }
 .compose .alert { margin: .4rem 0; }
+
+/* The review and the question to the applicant are separate boxes. */
+.box { border: 1px solid var(--line); border-radius: 12px; padding: .2rem 1rem .9rem; margin: 1rem 0; background: var(--surface); }
+.box h3 { margin: .7rem 0 .3rem; font-size: 1rem; }
+.note.small { font-size: .85rem; margin: .2rem 0 .5rem; }
+.edit summary { font-size: .85rem; color: var(--muted); cursor: pointer; }

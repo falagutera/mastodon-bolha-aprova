@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -310,12 +311,21 @@ func (s *store) reviewCounts(ctx context.Context, service string, rounds map[str
 }
 
 type comment struct {
-	Round  int       `json:"round"`
-	Author string    `json:"author"`
-	Kind   string    `json:"kind"`
-	Body   string    `json:"body"`
-	At     time.Time `json:"at"`
+	ID       int64      `json:"id"`
+	Round    int        `json:"round"`
+	AuthorID string     `json:"-"`
+	Author   string     `json:"author"`
+	Kind     string     `json:"kind"`
+	Body     string     `json:"body"`
+	At       time.Time  `json:"at"`
+	EditedAt *time.Time `json:"edited_at,omitempty"`
+	// Mine: the viewer wrote it and may fix it.
+	Mine bool `json:"mine"`
 }
+
+// editableKinds are the texts an author may fix later. A question already went
+// out by e-mail, and system lines aren't anyone's.
+var editableKinds = []string{kindComment, kindReview + "_" + verdictApprove, kindReview + "_" + verdictReject, kindEscalate, kindRejectReason, kindApproveNote, kindInfoAnswer}
 
 // Comment kinds. The applicant never sees any of them.
 const (
@@ -337,15 +347,51 @@ func addComment(ctx context.Context, tx pgx.Tx, st reqState, authorID, authorAcc
 }
 
 func (s *store) comments(ctx context.Context, service, id string) ([]comment, error) {
-	rows, err := s.pool.Query(ctx, `SELECT round, author_acct, kind, body, at FROM comments
+	rows, err := s.pool.Query(ctx, `SELECT id, round, author_id, author_acct, kind, body, at, edited_at FROM comments
 		WHERE service = $1 AND request_id = $2 ORDER BY id`, service, id)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (comment, error) {
 		var c comment
-		return c, r.Scan(&c.Round, &c.Author, &c.Kind, &c.Body, &c.At)
+		return c, r.Scan(&c.ID, &c.Round, &c.AuthorID, &c.Author, &c.Kind, &c.Body, &c.At, &c.EditedAt)
 	})
+}
+
+var errNotYours = errors.New("not your comment")
+
+// editComment changes the text of a comment its author wrote, and keeps the old
+// text in the audit log.
+func (s *store) editComment(ctx context.Context, e auditEntry, commentID int64, body string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var old, author, kind, username string
+	err = tx.QueryRow(ctx, `SELECT c.body, c.author_id, c.kind, r.username FROM comments c
+		JOIN requests r ON r.service = c.service AND r.request_id = c.request_id
+		WHERE c.id = $1 AND c.service = $2 AND c.request_id = $3 FOR UPDATE OF c`, commentID, e.Service, e.RequestID).
+		Scan(&old, &author, &kind, &username)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return errNotYours
+	} else if err != nil {
+		return err
+	}
+	if author != e.ActorID || !slices.Contains(editableKinds, kind) {
+		return errNotYours
+	}
+	if old == body {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `UPDATE comments SET body = $2, edited_at = now() WHERE id = $1`, commentID, body); err != nil {
+		return err
+	}
+	e.Username, e.Action, e.Detail, e.Result = username, "comment_edit", old, "ok"
+	if err := audit(ctx, tx, e); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // ---- preferences

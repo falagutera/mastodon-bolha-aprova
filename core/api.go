@@ -164,6 +164,38 @@ func (s *Server) apiRoutes(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"result": out.done})
 	}))
+	// Fix the text of one's own comment: {"body": "..."}.
+	mux.HandleFunc("PATCH /api/v1/requests/{service}/{id}/comments/{comment}", s.api(func(w http.ResponseWriter, r *http.Request, sess session) {
+		svc, ok := s.services[r.PathValue("service")]
+		if !ok || !svc.profile.canView(sess.Role) {
+			apiError(w, http.StatusNotFound, "not_found")
+			return
+		}
+		var in struct {
+			Body string `json:"body"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			apiError(w, http.StatusBadRequest, "bad_json")
+			return
+		}
+		in.Body = strings.TrimSpace(in.Body)
+		if utf8.RuneCountInString(in.Body) > maxText || !utf8.ValidString(in.Body) {
+			apiError(w, http.StatusBadRequest, "too_long")
+			return
+		}
+		formErr, err := s.editComment(r.Context(), sess, svc, r.PathValue("id"), r.PathValue("comment"), in.Body)
+		switch {
+		case errors.Is(err, errNotYours):
+			apiError(w, http.StatusForbidden, "not_your_comment")
+			return
+		case s.apiFailed(w, err):
+			return
+		case formErr != "":
+			apiError(w, http.StatusUnprocessableEntity, formErr)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"result": "edited"})
+	}))
 	mux.HandleFunc("GET /api/v1/audit", s.api(func(w http.ResponseWriter, r *http.Request, sess session) {
 		var ids []string
 		for _, p := range s.visibleProfiles(sess.Role) {

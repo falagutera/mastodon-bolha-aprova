@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -125,6 +126,11 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 	}
 	if err != nil {
 		return requestView{}, err
+	}
+	canWrite := svc.profile.canReview(sess.Role) || svc.profile.canBulkReject(sess.Role)
+	for i := range rv.Comments {
+		c := &rv.Comments[i]
+		c.Mine = canWrite && c.AuthorID == sess.AccountID && slices.Contains(editableKinds, c.Kind)
 	}
 	p := svc.profile
 	rv.Tally = p.count(st.Escalated, reviews, rv.Checks)
@@ -256,6 +262,49 @@ func (s *Server) act(ctx context.Context, sess session, svc *service, id, kind, 
 }
 
 var errForbidden = errors.New("forbidden")
+
+// editComment fixes the text of the moderator's own comment. Someone who lost
+// the role can't, and the old text goes to the audit log.
+func (s *Server) editComment(ctx context.Context, sess session, svc *service, id, commentID, body string) (string, error) {
+	if !svc.profile.canView(sess.Role) || !(svc.profile.canReview(sess.Role) || svc.profile.canBulkReject(sess.Role)) {
+		return "", errForbidden
+	}
+	cid, err := strconv.ParseInt(commentID, 10, 64)
+	if err != nil || cid <= 0 {
+		return "", errNotYours
+	}
+	if body == "" {
+		return "empty", nil
+	}
+	e := auditEntry{ActorID: sess.AccountID, ActorAcct: sess.Acct, Profile: svc.profile.id, Service: svc.id, RequestID: id}
+	return "", s.db.editComment(ctx, e, cid, body)
+}
+
+func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request, sess session) {
+	svc, ok := s.lookup(w, r, sess)
+	if !ok {
+		return
+	}
+	id := r.PathValue("id")
+	back := "/r/" + url.PathEscape(svc.id) + "/" + url.PathEscape(id)
+	body, ok := text(r, "body")
+	if !ok {
+		http.Redirect(w, r, back+"?error=too_long#discussion", http.StatusSeeOther)
+		return
+	}
+	formErr, err := s.editComment(r.Context(), sess, svc, id, r.PostFormValue("comment"), body)
+	switch {
+	case errors.Is(err, errForbidden), errors.Is(err, errNotYours):
+		s.renderError(w, r, http.StatusForbidden, "forbidden")
+	case err != nil:
+		log.Printf("edit %s: %v", svc.id, err)
+		s.renderError(w, r, http.StatusServiceUnavailable, "unavailable")
+	case formErr != "":
+		http.Redirect(w, r, back+"?error="+formErr+"#discussion", http.StatusSeeOther)
+	default:
+		http.Redirect(w, r, back+"?done=edited#discussion", http.StatusSeeOther)
+	}
+}
 
 // apply does one action with the request locked. It returns errFailed with a
 // formError for a refusal the moderator can fix, and rolls everything back.

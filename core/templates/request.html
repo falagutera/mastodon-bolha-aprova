@@ -15,10 +15,16 @@
 <p class="flash">{{.T.decided}}: {{if $r.Decision}}{{t .T (printf "decision_%s" $r.Decision)}}{{else}}{{.T.decision_gone}}{{end}}{{if $r.DecidedBy}} · @{{$r.DecidedBy}}{{end}}</p>
 {{end}}
 
-<h2>{{.T.discussion}}</h2>
+<h2 id="discussion">{{.T.discussion}}</h2>
 {{if $r.Comments}}<ol class="comments">
-{{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}
-    <p>{{if eq .Kind "system"}}{{t $.T (printf "system_%s" .Body)}}{{else}}{{.Body}}{{end}}</p></li>
+{{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
+    <p>{{if eq .Kind "system"}}{{t $.T (printf "system_%s" .Body)}}{{else}}{{.Body}}{{end}}</p>
+    {{if .Mine}}<details class="edit"><summary>{{$.T.edit}}</summary>
+    <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/edit" class="compose">
+      <input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="comment" value="{{.ID}}">
+      <textarea name="body" required maxlength="4000" placeholder=" ">{{.Body}}</textarea>
+      <button type="submit" class="button">{{$.T.save}}</button>
+    </form></details>{{end}}</li>
 {{end}}</ol>{{else}}<p class="note">{{.T.no_comments}}</p>{{end}}
 
 {{if $r.CanReview}}
@@ -43,18 +49,26 @@
 {{end}}</ul>
 
 {{if $r.CanReview}}
-<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose review" id="review">
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose review box" id="review">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   {{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
   <fieldset><legend>{{.T.review}}</legend>
   <label class="check"><input type="radio" name="verdict" value="approve" required> {{if $r.WouldApprove}}{{.T.review_approve_quorum}}{{else}}{{.T.review_approve}}{{end}}</label>
   <label class="check"><input type="radio" name="verdict" value="reject" class="needs-text"> {{.T.review_reject}}</label>
-  {{if .Mail}}<label class="check"><input type="radio" name="verdict" value="info" class="needs-text"> {{.T.review_info}}</label>{{end}}
   </fieldset>
-  <label>{{.T.review_note}}{{if .Mail}} / {{.T.question}}{{end}} <textarea name="body" maxlength="4000" placeholder=" "></textarea></label>
+  <label>{{.T.review_reason}} <textarea name="body" maxlength="4000" placeholder=" "></textarea></label>
+  <p class="note small">{{.T.review_reason_help}}</p>
   <p class="needs-text-hint">{{.T.form_needs_text}}</p>
-  <button type="submit" class="button">{{.T.send}}</button>
+  <button type="submit" class="button">{{.T.review_send}}</button>
 </form>
+{{if .Mail}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose box">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <input type="hidden" name="verdict" value="info">
+  <h3>{{.T.ask_title}}</h3>
+  <label>{{.T.ask_body}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
+  <p class="note small">{{.T.ask_help}}</p>
+  <button type="submit" class="button">{{.T.ask_send}}</button>
+</form>{{end}}
 {{if $r.Awaiting}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/answer" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   <label>{{.T.answer}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>

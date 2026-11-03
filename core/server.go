@@ -243,6 +243,7 @@ func (s *Server) Handler() http.Handler {
 	for _, a := range actions {
 		mux.HandleFunc("POST /r/{service}/{id}/"+a, s.action(s.handleAct(a)))
 	}
+	mux.HandleFunc("POST /r/{service}/{id}/edit", s.action(s.handleEdit))
 	mux.HandleFunc("POST /bulk-reject", s.action(s.handleBulkReject))
 	s.apiRoutes(mux)
 	return securityHeaders(mux)
@@ -285,7 +286,7 @@ type viewData struct {
 	DMOff    bool
 }
 
-var flashes = []string{"prefs", "approved", "rejected", "reviewed", "escalated", "deescalated", "answered", "commented", "asked", "gone", "already", "bulk", "mail_failed", "no_mail"}
+var flashes = []string{"prefs", "approved", "rejected", "reviewed", "escalated", "deescalated", "answered", "commented", "asked", "gone", "already", "bulk", "mail_failed", "no_mail", "edited"}
 
 func (s *Server) view(r *http.Request, sess session, nav string) viewData {
 	lang := language(r, s.cfg.Lang)

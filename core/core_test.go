@@ -562,3 +562,56 @@ func TestBotConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthorsFixTheirOwnComments(t *testing.T) {
+	w := newWorld(t)
+	id := uniq()
+	w.bolha.add(id, "tom", "tom@example.org", "hello")
+	sabia, p1 := w.login("sabia"), w.login("p1")
+	sabia.review("bolha-us", id, "reject", "Ne parece bot")
+	ctx := context.Background()
+	list, _ := w.srv.db.comments(ctx, "bolha-us", id)
+	var cid int64
+	for _, c := range list {
+		if c.Kind == kindReview+"_"+verdictReject {
+			cid = c.ID
+		}
+	}
+	if cid == 0 {
+		t.Fatalf("no review comment: %+v", list)
+	}
+	edit := func(c *browser, body string) string {
+		_, loc := c.post("/r/bolha-us/"+id+"/edit", url.Values{"comment": {fmt.Sprint(cid)}, "body": {body}})
+		return loc
+	}
+	if code, _ := p1.post("/r/bolha-us/"+id+"/edit", url.Values{"comment": {fmt.Sprint(cid)}, "body": {"hijack"}}); code != http.StatusForbidden {
+		t.Errorf("someone else's comment: %d", code)
+	}
+	if loc := edit(sabia, ""); !strings.Contains(loc, "error=empty") {
+		t.Errorf("empty edit: %s", loc)
+	}
+	if loc := edit(sabia, "Me parece bot"); !strings.Contains(loc, "done=edited") {
+		t.Errorf("edit: %s", loc)
+	}
+	list, _ = w.srv.db.comments(ctx, "bolha-us", id)
+	for _, c := range list {
+		if c.ID == cid && (c.Body != "Me parece bot" || c.EditedAt == nil) {
+			t.Errorf("after edit: %+v", c)
+		}
+	}
+	var old string
+	w.srv.db.pool.QueryRow(ctx, `SELECT detail FROM audit_log WHERE service = 'bolha-us' AND request_id = $1 AND action = 'comment_edit'`, id).Scan(&old)
+	if old != "Ne parece bot" {
+		t.Errorf("old text in the log: %q", old)
+	}
+	// A question already went out by e-mail: it stays as sent.
+	sabia.review("bolha-us", id, "info", "Can you tell us more?")
+	list, _ = w.srv.db.comments(ctx, "bolha-us", id)
+	for _, c := range list {
+		if c.Kind == kindInfoQuestion || c.Kind == kindReview+"_"+verdictInfo {
+			if code, _ := sabia.post("/r/bolha-us/"+id+"/edit", url.Values{"comment": {fmt.Sprint(c.ID)}, "body": {"changed"}}); code != http.StatusForbidden {
+				t.Errorf("edited a question already sent: %d", code)
+			}
+		}
+	}
+}
