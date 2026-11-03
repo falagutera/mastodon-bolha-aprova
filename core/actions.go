@@ -207,7 +207,8 @@ func (s *Server) handleAct(kind string) authed {
 			log.Printf("%s %s: %v", kind, svc.id, err)
 			s.renderError(w, r, http.StatusServiceUnavailable, "unavailable")
 		case out.formError != "":
-			http.Redirect(w, r, back+"?error="+url.QueryEscape(out.formError), http.StatusSeeOther)
+			// Back to the form, where the message shows next to the field.
+			http.Redirect(w, r, back+"?error="+url.QueryEscape(out.formError)+"#review", http.StatusSeeOther)
 		case out.done == "approved" || out.done == "rejected" || out.done == "mail_failed" || out.done == "no_mail":
 			http.Redirect(w, r, "/queue?done="+out.done, http.StatusSeeOther)
 		default:

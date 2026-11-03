@@ -33,3 +33,13 @@ fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; 
 .svc p.note { background: none; border: 0; padding: 0; max-width: none; }
 .svc-0 { --svc: #3b9fd1; } .svc-1 { --svc: #c46fd6; } .svc-2 { --svc: #d9893f; }
 .svc-3 { --svc: #3fae94; } .svc-4 { --svc: #e0628f; } .svc-5 { --svc: #8bb34a; }
+
+/* Reject and ask need text: until it's there the box is red and Send is off.
+   The server refuses it anyway; this only says so before sending. */
+.needs-text-hint { display: none; margin: .2rem 0; font-size: .85rem; color: var(--crit); }
+.review:has(.needs-text:checked) textarea:placeholder-shown,
+.compose textarea[required]:placeholder-shown:not(:focus):user-invalid { border: 2px solid var(--crit); background: var(--crit-soft); }
+.review:has(.needs-text:checked):has(textarea:placeholder-shown) .needs-text-hint { display: block; }
+.review:has(.needs-text:checked):has(textarea:placeholder-shown) button[type=submit],
+.compose:has(textarea[required]:placeholder-shown) button[type=submit] { opacity: .45; pointer-events: none; cursor: not-allowed; }
+.compose .alert { margin: .4rem 0; }

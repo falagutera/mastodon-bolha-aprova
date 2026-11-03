@@ -24,7 +24,7 @@
 {{if $r.CanReview}}
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/comment" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
-  <label>{{.T.comment}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <label>{{.T.comment}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <button type="submit" class="button">{{.T.send}}</button>
 </form>
 {{end}}
@@ -39,30 +39,32 @@
 
 <h2>{{.T.checks}}</h2>
 <ul class="checks">
-{{range $r.Checks}}  <li class="{{if .OK}}ok{{else}}fail{{end}}">{{if .OK}}✓{{else}}⚠{{end}} {{t $.T (printf "check_%s" .Name)}}{{if and (not .OK) .Detail}} · {{.Detail}}{{end}}</li>
+{{range $r.Checks}}  <li class="{{if .OK}}ok{{else}}fail{{end}}">{{if .OK}}✓ {{$ok := printf "check_ok_%s" .Name}}{{if index $.T $ok}}{{index $.T $ok}}{{else}}{{t $.T (printf "check_%s" .Name)}}{{end}}{{else}}⚠ {{t $.T (printf "check_%s" .Name)}}{{end}}{{if and (not .OK) .Detail}} · {{.Detail}}{{end}}</li>
 {{end}}</ul>
 
 {{if $r.CanReview}}
-<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose">
+<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose review" id="review">
   <input type="hidden" name="csrf" value="{{$csrf}}">
+  {{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
   <fieldset><legend>{{.T.review}}</legend>
   <label class="check"><input type="radio" name="verdict" value="approve" required> {{if $r.WouldApprove}}{{.T.review_approve_quorum}}{{else}}{{.T.review_approve}}{{end}}</label>
-  <label class="check"><input type="radio" name="verdict" value="reject"> {{.T.review_reject}}</label>
-  {{if .Mail}}<label class="check"><input type="radio" name="verdict" value="info"> {{.T.review_info}}</label>{{end}}
+  <label class="check"><input type="radio" name="verdict" value="reject" class="needs-text"> {{.T.review_reject}}</label>
+  {{if .Mail}}<label class="check"><input type="radio" name="verdict" value="info" class="needs-text"> {{.T.review_info}}</label>{{end}}
   </fieldset>
-  <label>{{.T.review_note}}{{if .Mail}} / {{.T.question}}{{end}} <textarea name="body" maxlength="4000"></textarea></label>
+  <label>{{.T.review_note}}{{if .Mail}} / {{.T.question}}{{end}} <textarea name="body" maxlength="4000" placeholder=" "></textarea></label>
+  <p class="needs-text-hint">{{.T.form_needs_text}}</p>
   <button type="submit" class="button">{{.T.send}}</button>
 </form>
 {{if $r.Awaiting}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/answer" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
-  <label>{{.T.answer}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <label>{{.T.answer}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <p class="note">{{.T.answer_help}}</p>
   <button type="submit" class="button">{{.T.send}}</button>
 </form>{{end}}
 {{if not $r.Escalated}}<details><summary>{{.T.escalate}}</summary>
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/escalate" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
-  <label>{{.T.escalate_why}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <label>{{.T.escalate_why}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <button type="submit" class="button">{{.T.escalate}}</button>
 </form></details>{{end}}
 {{end}}
@@ -79,7 +81,7 @@
 <details><summary>{{.T.reject_now}}</summary>
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/reject" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
-  <label>{{.T.reject_reason}} <textarea name="body" required maxlength="4000"></textarea></label>
+  <label>{{.T.reject_reason}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <p class="note">{{if $r.SilentReject}}{{.T.reject_mail}}{{else}}{{.T.reject_app_mails}}{{end}}</p>
   <button type="submit" class="button danger">{{.T.reject_now}}</button>
 </form></details>
