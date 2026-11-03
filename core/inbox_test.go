@@ -34,9 +34,9 @@ func TestParseInboundGmailReply(t *testing.T) {
 func TestStripQuoted(t *testing.T) {
 	for in, want := range map[string]string{
 		"Sou do coletivo X.\n\nEm seg., 3 de nov. de 2026 às 13:31, bolha.us <aprova@bolha.us> escreveu:\n> pergunta": "Sou do coletivo X.",
-		"Answer here\n\n-----Original Message-----\nFrom: x":                                                "Answer here",
-		"line one\n> quoted\nline two":                                                                       "line one\nline two",
-		"Resposta\n\nDe: bolha.us <aprova@bolha.us>\nEnviado: segunda":                                       "Resposta",
+		"Answer here\n\n-----Original Message-----\nFrom: x":                                                          "Answer here",
+		"line one\n> quoted\nline two":                                 "line one\nline two",
+		"Resposta\n\nDe: bolha.us <aprova@bolha.us>\nEnviado: segunda": "Resposta",
 	} {
 		if got := stripQuoted(in); got != want {
 			t.Errorf("%q: got %q", in, got)
