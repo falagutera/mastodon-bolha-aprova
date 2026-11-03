@@ -81,8 +81,41 @@ func (b *imapInbox) Unread(ctx context.Context) ([]Inbound, error) {
 	if len(uids) > 200 {
 		uids = uids[:200]
 	}
+	// Sizes first: a message too big to read is marked seen and left to the
+	// team's copy, so it can't hold a place in the window forever.
+	sizes := map[uint32]uint32{}
+	{
+		all := new(imap.SeqSet)
+		all.AddNum(uids...)
+		ch := make(chan *imap.Message, 16)
+		done := make(chan error, 1)
+		go func() { done <- c.UidFetch(all, []imap.FetchItem{imap.FetchUid, imap.FetchRFC822Size}, ch) }()
+		for m := range ch {
+			sizes[m.Uid] = m.Size
+		}
+		if err := <-done; err != nil {
+			return nil, err
+		}
+	}
+	big, small := new(imap.SeqSet), []uint32{}
+	for _, u := range uids {
+		if sizes[u] > maxInbound {
+			log.Printf("inbox: uid %d is %d bytes, left for a human", u, sizes[u])
+			big.AddNum(u)
+		} else {
+			small = append(small, u)
+		}
+	}
+	if !big.Empty() {
+		if err := c.UidStore(big, imap.FormatFlagsOp(imap.AddFlags, true), []interface{}{imap.SeenFlag}, nil); err != nil {
+			return nil, err
+		}
+	}
+	if len(small) == 0 {
+		return nil, nil
+	}
 	set := new(imap.SeqSet)
-	set.AddNum(uids...)
+	set.AddNum(small...)
 	section := &imap.BodySectionName{Peek: true}
 	ch := make(chan *imap.Message, 16)
 	done := make(chan error, 1)
@@ -294,9 +327,9 @@ func emailHash(e string) string {
 }
 
 // readReplies attaches the applicants' answers to their requests. A message
-// matches by the question's Message-ID in its references, or else by its
-// sender among the requests waiting for an answer. Each message is handled
-// once, whatever the number of replicas.
+// counts only if it references one of our questions' Message-ID and comes from
+// the address that question went to. Each message is handled once, whatever
+// the number of replicas; everything else is left to the team's copy.
 func (s *Server) readReplies(ctx context.Context) {
 	if s.inbox == nil {
 		return
@@ -322,12 +355,18 @@ func (s *Server) takeReply(ctx context.Context, m Inbound) error {
 		return nil // not something to attach; a human sees the copy
 	}
 	from := emailHash(m.From)
-	// The sender must be the applicant asked (the hash taken when asking), so
-	// nobody else can answer for them, even quoting the right Message-ID.
+	// The sender must be the applicant asked (the hash taken when asking), and
+	// the message must answer one of our questions.
+	// Both are required: the From header alone is easy to forge, and the
+	// question's Message-ID is random and only went to the applicant.
+	if len(m.References) == 0 {
+		return nil
+	}
 	var service, requestID, username string
-	err := s.db.pool.QueryRow(ctx, `SELECT service, request_id, username FROM asked
-		WHERE email_hash = $2
-		ORDER BY (message_id = ANY($1)) DESC, at DESC LIMIT 1`, m.References, from).Scan(&service, &requestID, &username)
+	var round int
+	err := s.db.pool.QueryRow(ctx, `SELECT service, request_id, username, round FROM asked
+		WHERE message_id = ANY($1) AND email_hash = $2
+		ORDER BY at DESC LIMIT 1`, m.References, from).Scan(&service, &requestID, &username, &round)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	} else if err != nil {
@@ -352,7 +391,9 @@ func (s *Server) takeReply(ctx context.Context, m Inbound) error {
 		if err := addComment(ctx, tx, st, "", "", kindInfoAnswer, body); err != nil {
 			return err
 		}
-		if st.AwaitingSince != nil {
+		// Only an answer to this round's question moves the request on; a late
+		// answer to an older question is kept as a comment.
+		if st.AwaitingSince != nil && round == st.Round {
 			if err := setAwaiting(ctx, tx, st, false); err != nil {
 				return err
 			}

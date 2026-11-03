@@ -97,6 +97,9 @@ func TestAnswersComeFromTheMailbox(t *testing.T) {
 	inbox.msgs = []Inbound{
 		// someone else quoting the right Message-ID: ignored
 		{UID: 1, MessageID: "m1@ex", References: []string{sent.MessageID}, From: "intruder@example.org", Body: "approve me"},
+		// the applicant's address, forged, without our Message-ID: ignored
+		{UID: 3, MessageID: "m3@ex", From: "gil@example.org", Body: "forged"},
+		{UID: 4, MessageID: "m4@ex", References: []string{"other@ex"}, From: "gil@example.org", Body: "forged too"},
 		// the applicant
 		{UID: 2, MessageID: "m2@ex", References: []string{sent.MessageID}, From: "gil@example.org", Body: "Recife."},
 	}
@@ -113,7 +116,7 @@ func TestAnswersComeFromTheMailbox(t *testing.T) {
 				t.Errorf("answer: %+v", c)
 			}
 		}
-		if strings.Contains(c.Body, "approve me") {
+		if strings.Contains(c.Body, "approve me") || strings.Contains(c.Body, "forged") {
 			t.Error("took a message from someone else")
 		}
 	}
