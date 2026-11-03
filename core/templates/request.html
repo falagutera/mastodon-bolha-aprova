@@ -15,6 +15,7 @@
 <p class="flash">{{.T.decided}}: {{if $r.Decision}}{{t .T (printf "decision_%s" $r.Decision)}}{{else}}{{.T.decision_gone}}{{end}}{{if $r.DecidedBy}} · @{{$r.DecidedBy}}{{end}}</p>
 {{end}}
 
+<section class="discussion">
 <h2 id="discussion">{{.T.discussion}}</h2>
 {{if $r.Comments}}<ol class="comments">
 {{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else if eq .Kind "info_answer"}}{{$.T.applicant}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
@@ -34,6 +35,7 @@
   <button type="submit" class="button">{{.T.send}}</button>
 </form>
 {{end}}
+</section>
 </div>
 
 <aside class="side">

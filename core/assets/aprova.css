@@ -14,7 +14,16 @@
 .side { border-left: 1px solid var(--line); padding-left: 1.2rem; }
 .side ul { list-style: none; padding: 0; }
 .facts dt { color: var(--muted); } .facts dd { margin: 0 0 .6rem; overflow-wrap: anywhere; }
-.comments { list-style: none; padding: 0; } .comments li { padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.discussion { --disc: #7c8cf0; margin: 1.2rem 0; padding: .2rem 1.1rem .9rem; border-radius: 12px; border: 1px solid var(--line); border-left: 5px solid var(--disc); background: color-mix(in srgb, var(--disc) 7%, var(--surface)); }
+.discussion h2 { margin-top: .7rem; }
+.comments { list-style: none; padding: 0; margin: .5rem 0; }
+.comments li { --k: var(--line); margin: .55rem 0; padding: .5rem .8rem; border-radius: 10px; border: 1px solid var(--line); border-left: 4px solid var(--k); background: var(--surface); }
+.comments li.kind-review_approve, .comments li.kind-approve_note { --k: #3fae6a; }
+.comments li.kind-review_reject, .comments li.kind-reject_reason { --k: #d9534f; }
+.comments li.kind-info_question { --k: #3b9fd1; }
+.comments li.kind-info_answer { --k: #d9a93f; background: color-mix(in srgb, #d9a93f 8%, var(--surface)); }
+.comments li.kind-escalate { --k: #d9893f; }
+.comments li.kind-system { --k: var(--muted, #888); }
 .comments p { margin: .25rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .compose label { display: block; margin: .5rem 0; } .compose textarea { width: 100%; min-height: 4.5rem; }
 fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; }
