@@ -683,3 +683,39 @@ func (s *Server) handleBulkReject(w http.ResponseWriter, r *http.Request, sess s
 	}
 	http.Redirect(w, r, "/queue?done=bulk", http.StatusSeeOther)
 }
+
+// roundView is one round of the discussion: its comments, and whether it is the
+// one whose reviews count now.
+type roundView struct {
+	N        int
+	Current  bool
+	Comments []comment
+}
+
+// Rounds splits the discussion by round, in order. The current round is always
+// there, empty when nobody wrote in it yet, so the page shows that earlier
+// reviews stopped counting. Lines with no round (system notes) join the round
+// they follow.
+func (r requestView) Rounds() []roundView {
+	var out []roundView
+	for _, c := range r.Comments {
+		n := c.Round
+		if n < 1 {
+			n = 1
+			if len(out) > 0 {
+				n = out[len(out)-1].N
+			}
+		}
+		if len(out) == 0 || out[len(out)-1].N != n {
+			out = append(out, roundView{N: n})
+		}
+		out[len(out)-1].Comments = append(out[len(out)-1].Comments, c)
+	}
+	if r.Round > 0 && (len(out) == 0 || out[len(out)-1].N < r.Round) {
+		out = append(out, roundView{N: r.Round})
+	}
+	for i := range out {
+		out[i].Current = out[i].N == r.Round
+	}
+	return out
+}

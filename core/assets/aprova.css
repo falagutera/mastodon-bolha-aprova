@@ -25,6 +25,11 @@
 .comments li.kind-escalate { --k: #d9893f; }
 .comments li.kind-system { --k: var(--muted, #888); }
 .comments p { margin: .25rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.round { margin: 1rem 0; }
+.round + .round { border-top: 1px dashed var(--line); padding-top: .75rem; }
+.round-head { font-size: 1rem; margin: 0 0 .25rem; }
+.round.closed .round-head { color: var(--muted, #888); }
+.round.closed .comments li { opacity: .7; }
 .compose label { display: block; margin: .5rem 0; } .compose textarea { width: 100%; min-height: 4.5rem; }
 fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; }
 .button.danger { border-color: #e08a83; }

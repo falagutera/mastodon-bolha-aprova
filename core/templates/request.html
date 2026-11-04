@@ -17,8 +17,12 @@
 
 <section class="discussion">
 <h2 id="discussion">{{.T.discussion}}</h2>
-{{if $r.Comments}}<ol class="comments">
-{{range $r.Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else if eq .Kind "info_answer"}}{{$.T.applicant}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span> · {{$.T.round}} {{.Round}}{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
+{{$rounds := $r.Rounds}}{{$many := gt (len $rounds) 1}}{{if $r.Comments}}{{range $rounds}}
+{{if $many}}<div class="round{{if .Current}} current{{else}} closed{{end}}">
+<h3 class="round-head">{{$.T.round}} {{.N}}{{if .Current}} · {{$.T.round_current}}{{else}} · {{$.T.round_closed}}{{end}}</h3>
+{{if and .Current (gt .N 1)}}<p class="note small">{{$.T.round_started}}</p>{{end}}{{end}}
+{{if .Comments}}<ol class="comments">
+{{range .Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else if eq .Kind "info_answer"}}{{$.T.applicant}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span>{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
     <p>{{if eq .Kind "system"}}{{t $.T (printf "system_%s" .Body)}}{{else}}{{.Body}}{{end}}</p>
     {{if .Mine}}<details class="edit"><summary>{{$.T.edit}}</summary>
     <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/edit" class="compose">
@@ -26,7 +30,8 @@
       <textarea name="body" required maxlength="4000" placeholder=" ">{{.Body}}</textarea>
       <button type="submit" class="button">{{$.T.save}}</button>
     </form></details>{{end}}</li>
-{{end}}</ol>{{else}}<p class="note">{{.T.no_comments}}</p>{{end}}
+{{end}}</ol>{{else}}<p class="note">{{$.T.round_empty}}</p>{{end}}
+{{if $many}}</div>{{end}}{{end}}{{else}}<p class="note">{{.T.no_comments}}</p>{{end}}
 
 {{if $r.CanReview}}
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/comment" class="compose">

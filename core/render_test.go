@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"html/template"
 	"strings"
 	"testing"
 	"time"
@@ -77,6 +78,41 @@ func TestTranslationsHaveTheSameKeys(t *testing.T) {
 	for _, f := range flashes {
 		if en["flash_"+f] == "" {
 			t.Errorf("missing flash_%s", f)
+		}
+	}
+}
+
+// The discussion is split by round once there is more than one, and the current
+// round shows even before anyone reviews in it.
+func TestDiscussionSplitsRounds(t *testing.T) {
+	r := requestView{Round: 2, Comments: []comment{
+		{Round: 1, Author: "a", Kind: kindReview + "_approve", At: time.Now()},
+		{Kind: kindSystem, Body: "conflict", At: time.Now()},
+		{Round: 1, Kind: kindInfoAnswer, Body: "answer", At: time.Now()},
+	}}
+	rs := r.Rounds()
+	if len(rs) != 2 || rs[0].N != 1 || len(rs[0].Comments) != 3 || rs[0].Current || rs[1].N != 2 || !rs[1].Current || len(rs[1].Comments) != 0 {
+		t.Fatalf("rounds = %+v", rs)
+	}
+	if one := (requestView{Round: 1, Comments: r.Comments[:1]}).Rounds(); len(one) != 1 || !one[0].Current {
+		t.Fatalf("single round = %+v", one)
+	}
+
+	tmpl, err := parseTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, lang := range supportedLangs {
+		v := viewData{T: strs(lang), Lang: lang, Version: "test", Domain: "aprova.example", Acct: "ana", Role: "Sábios", CSRF: "c", Req: r}
+		var b bytes.Buffer
+		if err := tmpl.ExecuteTemplate(&b, "request.html", v); err != nil {
+			t.Fatal(err)
+		}
+		out := b.String()
+		for _, want := range []string{v.T["round_closed"], v.T["round_current"], v.T["round_started"], v.T["round_empty"]} {
+			if !strings.Contains(out, template.HTMLEscapeString(want)) {
+				t.Errorf("%s: missing %q", lang, want)
+			}
 		}
 	}
 }
