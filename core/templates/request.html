@@ -92,7 +92,8 @@
 <details><summary>{{.T.approve_now}}</summary>
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/approve" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
-  <label>{{.T.approve_note}} <textarea name="body" maxlength="4000"></textarea></label>
+  {{$need := or $r.Tally.Blocked (not $r.Tally.ChecksOK)}}<label>{{.T.approve_note}} <textarea name="body" maxlength="4000"{{if $need}} required placeholder=" "{{end}}></textarea></label>
+  <p class="note small">{{if $need}}{{.T.approve_note_required}}{{else}}{{.T.approve_note_optional}}{{end}}</p>
   {{if $r.SendsWelcome}}<p class="note">{{.T.welcome_note}}</p>{{end}}
   <button type="submit" class="button">{{.T.approve_now}}</button>
 </form></details>
