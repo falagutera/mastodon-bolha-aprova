@@ -646,9 +646,15 @@ func (s *Server) handleBulkReject(w http.ResponseWriter, r *http.Request, sess s
 		ids = ids[:100]
 	}
 	actor := actorFor(sess, svc)
+	failed := 0
 	for _, id := range ids {
 		q, pending, err := svc.mod.Get(r.Context(), actor, id)
-		if err != nil || !pending {
+		if err != nil {
+			log.Printf("bulk reject %s: %v", id, err)
+			failed++
+			continue
+		}
+		if !pending {
 			continue
 		}
 		var out outcome
@@ -666,9 +672,14 @@ func (s *Server) handleBulkReject(w http.ResponseWriter, r *http.Request, sess s
 		})
 		if err != nil {
 			log.Printf("bulk reject %s: %v", id, err)
+			failed++
 			continue
 		}
 		s.after(r.Context(), sess, svc, q, &out)
+	}
+	if failed > 0 {
+		http.Redirect(w, r, "/queue?error=bulk_failed", http.StatusSeeOther)
+		return
 	}
 	http.Redirect(w, r, "/queue?done=bulk", http.StatusSeeOther)
 }

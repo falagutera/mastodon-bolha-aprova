@@ -309,6 +309,9 @@ func (s *Server) view(r *http.Request, sess session, nav string) viewData {
 	if k := r.URL.Query().Get("done"); slices.Contains(flashes, k) {
 		v.Flash = v.T["flash_"+k]
 	}
+	if k := r.URL.Query().Get("error"); k != "" {
+		v.Error = v.T["form_"+k]
+	}
 	return v
 }
 
