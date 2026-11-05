@@ -499,7 +499,7 @@ func (s *Server) serviceQueue(ctx context.Context, sess session, svc *service, d
 		it := itemView{Service: svc.id, ID: q.ID, Username: q.Username, Email: q.Email, Reason: q.Reason, Created: q.Created.Format(date),
 			Approvals: c[0], Rejects: c[1], Needed: svc.profile.Review.Quorum}
 		it.CanBulk = sv.CanBulk && svc.profile.canDecide(sess.Role, st.Escalated)
-		for _, chk := range s.checks.run(ctx, q) {
+		for _, chk := range s.checks.run(ctx, q, svc.mod.Caps().NoReason) {
 			if !chk.OK {
 				it.Flags = append(it.Flags, chk.Name)
 			}

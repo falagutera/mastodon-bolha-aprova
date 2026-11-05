@@ -105,7 +105,9 @@ func (c *checker) listed(name string) bool {
 	return slices.ContainsFunc(c.disposable, func(d string) bool { return name == d || strings.HasSuffix(name, "."+d) })
 }
 
-func (c *checker) run(ctx context.Context, r module.Request) []module.Check {
+// run checks one request. noReason (from the module's Caps) drops the reason
+// check for apps whose sign-up form has no reason field.
+func (c *checker) run(ctx context.Context, r module.Request, noReason bool) []module.Check {
 	out := []module.Check{}
 	bot, why := botSignal(r.Email, r.Reason)
 	out = append(out, module.Check{Name: checkBotSignal, OK: !bot, Detail: why})
@@ -121,6 +123,8 @@ func (c *checker) run(ctx context.Context, r module.Request) []module.Check {
 		}
 	}
 	out = append(out, module.Check{Name: checkDisposable, OK: !disposable, Detail: domain})
-	out = append(out, module.Check{Name: checkReason, OK: strings.TrimSpace(r.Reason) != ""})
+	if !noReason {
+		out = append(out, module.Check{Name: checkReason, OK: strings.TrimSpace(r.Reason) != ""})
+	}
 	return append(out, r.Checks...)
 }

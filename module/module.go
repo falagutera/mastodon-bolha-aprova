@@ -50,6 +50,9 @@ type Caps struct {
 	SilentReject bool
 	// SendsWelcome: approving makes the app send its own welcome e-mail.
 	SendsWelcome bool
+	// NoReason: the app's sign-up form has no reason field, so an empty reason
+	// says nothing about the applicant: the core skips its reason check.
+	NoReason bool
 }
 
 // Module is one app. Every method must check its arguments: ids come from URLs.

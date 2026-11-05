@@ -56,7 +56,8 @@ func New(c module.Config) (module.Module, error) {
 func (g *gitlab) Caps() module.Caps {
 	// GitLab e-mails the person both when approved and when rejected, and can't
 	// be told not to. aprova then skips its own rejection e-mail.
-	return module.Caps{SilentReject: false, SendsWelcome: true}
+	// The sign-up form asks for no reason (Reason is the profile bio).
+	return module.Caps{SilentReject: false, SendsWelcome: true, NoReason: true}
 }
 
 type user struct {

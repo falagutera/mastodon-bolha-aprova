@@ -71,7 +71,8 @@ func New(c module.Config) (module.Module, error) {
 
 func (f *forgejo) Caps() module.Caps {
 	// Deleting sends nothing, and neither does activating: aprova is the only voice.
-	return module.Caps{SilentReject: true, SendsWelcome: false}
+	// The sign-up form asks for no reason (Reason is the profile description).
+	return module.Caps{SilentReject: true, SendsWelcome: false, NoReason: true}
 }
 
 type user struct {

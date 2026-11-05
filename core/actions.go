@@ -52,6 +52,7 @@ type requestView struct {
 	WouldApprove  bool           `json:"would_approve"` // my approval completes the quorum
 	SilentReject  bool           `json:"silent_reject"`
 	SendsWelcome  bool           `json:"sends_welcome"`
+	NoReason      bool           `json:"no_reason"` // the app's form asks for no reason
 }
 
 func (s *Server) lookup(w http.ResponseWriter, r *http.Request, sess session) (*service, bool) {
@@ -105,7 +106,7 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 	caps := svc.mod.Caps()
 	rv := requestView{Service: svc.id, ServiceName: svc.cfg.Name, ID: id, Pending: pending && st.Decision == "",
 		Username: st.Username, Round: st.Round, Escalated: st.Escalated,
-		Decision: st.Decision, DecidedBy: st.DecidedBy, SilentReject: caps.SilentReject, SendsWelcome: caps.SendsWelcome}
+		Decision: st.Decision, DecidedBy: st.DecidedBy, SilentReject: caps.SilentReject, SendsWelcome: caps.SendsWelcome, NoReason: caps.NoReason}
 	// The app's data about an account is shown only while it is a pending request:
 	// the module's credentials can read any account, not just applicants.
 	if rv.Pending {
@@ -118,7 +119,7 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 		rv.Awaiting = st.AwaitingSince.Format(dateFormat)
 	}
 	if rv.Pending {
-		rv.Checks = s.checks.run(ctx, q)
+		rv.Checks = s.checks.run(ctx, q, caps.NoReason)
 	}
 	reviews, err := reviewsOf(ctx, s.db.pool, svc.id, id, st.Round)
 	if err == nil {
@@ -240,7 +241,7 @@ func (s *Server) act(ctx context.Context, sess session, svc *service, id, kind, 
 		s.markGone(ctx, svc, id)
 		return outcome{done: "gone"}, nil
 	}
-	checks := s.checks.run(ctx, q)
+	checks := s.checks.run(ctx, q, svc.mod.Caps().NoReason)
 	var out outcome
 	err = s.db.withRequest(ctx, svc.id, id, q.Username, func(tx pgx.Tx, st reqState) error {
 		if st.Decision != "" {
