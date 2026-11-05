@@ -63,7 +63,7 @@
   {{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
   <fieldset><legend>{{.T.review}}</legend>
   <label class="check"><input type="radio" name="verdict" value="approve" required> {{if $r.WouldApprove}}{{.T.review_approve_quorum}}{{else}}{{.T.review_approve}}{{end}}</label>
-  <label class="check"><input type="radio" name="verdict" value="reject" class="needs-text"> {{.T.review_reject}}</label>
+  <label class="check"><input type="radio" name="verdict" value="reject" class="needs-text"> {{if $r.WouldReject}}{{.T.review_reject_quorum}}{{else}}{{.T.review_reject}}{{end}}</label>
   </fieldset>
   <label>{{.T.review_reason}} <textarea name="body" maxlength="4000" placeholder=" "></textarea></label>
   <p class="note small">{{.T.review_reason_help}}</p>

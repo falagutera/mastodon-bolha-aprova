@@ -50,6 +50,7 @@ type requestView struct {
 	CanDecide     bool           `json:"can_decide"`
 	CanDeescalate bool           `json:"can_deescalate"`
 	WouldApprove  bool           `json:"would_approve"` // my approval completes the quorum
+	WouldReject   bool           `json:"would_reject"`  // my rejection completes the reject quorum
 	SilentReject  bool           `json:"silent_reject"`
 	SendsWelcome  bool           `json:"sends_welcome"`
 	NoReason      bool           `json:"no_reason"` // the app's form asks for no reason
@@ -145,9 +146,16 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 	rv.CanReview = rv.Pending && p.canReview(sess.Role)
 	rv.CanDecide = rv.Pending && p.canDecide(sess.Role, st.Escalated)
 	rv.CanDeescalate = rv.Pending && st.Escalated && p.canDeescalate(sess.Role)
+	mine := func(verdict string) tally {
+		v := append(slices.Clone(reviews), review{ReviewerID: sess.AccountID, ReviewerRole: sess.Role, Verdict: verdict})
+		return p.count(st.Escalated, latest(v), rv.Checks)
+	}
+	eligible := !st.Escalated || hasRole(sess.Role, p.EscalateTo)
 	if rv.CanReview && rv.MyVote != verdictApprove {
-		mine := append(slices.Clone(reviews), review{ReviewerID: sess.AccountID, ReviewerRole: sess.Role, Verdict: verdictApprove})
-		rv.WouldApprove = p.count(st.Escalated, latest(mine), rv.Checks).Ready() && (!st.Escalated || hasRole(sess.Role, p.EscalateTo))
+		rv.WouldApprove = mine(verdictApprove).Ready() && eligible
+	}
+	if rv.CanReview && rv.MyVote != verdictReject {
+		rv.WouldReject = mine(verdictReject).ReadyReject() && eligible
 	}
 	return rv, nil
 }
@@ -409,6 +417,18 @@ func (s *Server) apply(ctx context.Context, tx pgx.Tx, kind string, sess session
 			}
 			out.done = "approved"
 		}
+		if verdict == verdictReject && mine && t.ReadyReject() {
+			// The vote that completes the reject quorum rejects, with this
+			// moderator's credentials, exactly as the approval quorum approves.
+			var who []string
+			for _, rr := range reviews {
+				if rr.Verdict == verdictReject {
+					who = append(who, "@"+rr.ReviewerAcct)
+				}
+			}
+			reason := "reject quorum: " + strings.Join(who, " + ")
+			return s.reject(ctx, tx, sess, svc, st, q, reason, "reject_quorum", entry)
+		}
 		return out, nil
 
 	case "approve":
@@ -447,7 +467,7 @@ func (s *Server) apply(ctx context.Context, tx pgx.Tx, kind string, sess session
 		if body == "" {
 			return fail("reason_required")
 		}
-		return s.reject(ctx, tx, sess, svc, st, q, body, entry)
+		return s.reject(ctx, tx, sess, svc, st, q, body, "reject", entry)
 
 	case "escalate":
 		if !p.canReview(sess.Role) {
@@ -507,7 +527,9 @@ func (s *Server) apply(ctx context.Context, tx pgx.Tx, kind string, sess session
 }
 
 // reject keeps the internal reason and leaves the e-mail for after the commit.
-func (s *Server) reject(ctx context.Context, tx pgx.Tx, sess session, svc *service, st reqState, q module.Request, reason string,
+// action is the audit action: "reject" for a moderator's decision, or
+// "reject_quorum" when a reject quorum rejected on its own.
+func (s *Server) reject(ctx context.Context, tx pgx.Tx, sess session, svc *service, st reqState, q module.Request, reason, action string,
 	entry func(string, string, string) auditEntry) (outcome, error) {
 	if err := addComment(ctx, tx, st, sess.AccountID, sess.Acct, kindRejectReason, reason); err != nil {
 		return outcome{}, err
@@ -516,7 +538,7 @@ func (s *Server) reject(ctx context.Context, tx pgx.Tx, sess session, svc *servi
 	if err != nil {
 		return outcome{}, err
 	}
-	if err := audit(ctx, tx, entry("reject", reason, res)); err != nil {
+	if err := audit(ctx, tx, entry(action, reason, res)); err != nil {
 		return outcome{}, err
 	}
 	if res == "gone" {
@@ -668,7 +690,7 @@ func (s *Server) handleBulkReject(w http.ResponseWriter, r *http.Request, sess s
 					Username: q.Username, Action: "bulk_" + action, Detail: detail, Result: result}
 			}
 			var err error
-			out, err = s.reject(r.Context(), tx, sess, svc, st, q, reason, entry)
+			out, err = s.reject(r.Context(), tx, sess, svc, st, q, reason, "reject", entry)
 			return err
 		})
 		if err != nil {

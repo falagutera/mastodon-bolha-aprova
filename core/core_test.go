@@ -132,6 +132,51 @@ func TestRejectSendsTheStandardMessageOnly(t *testing.T) {
 	}
 }
 
+// Three rejections reject on their own, mirroring the approval quorum: the vote
+// that completes it rejects with that moderator's own token, and the audit names
+// who. No approval is cast, so there is no conflict and nothing escalates.
+func TestRejectQuorumRejectsWithTheLastReviewersToken(t *testing.T) {
+	w := newWorld(t)
+	id := uniq()
+	w.bolha.add(id, "dora", "dora@example.org", "same bio as a known spam ring")
+	p1, p2, sabia := w.login("p1"), w.login("p2"), w.login("sabia")
+	p1.review("bolha-us", id, "reject", "looks like a spam ring")
+	p2.review("bolha-us", id, "reject", "same bio as a known bot")
+	if _, by := w.bolha.state(id); by != "" {
+		t.Fatal("rejected before three rejections")
+	}
+	if _, _, page := sabia.do(http.MethodGet, "/r/bolha-us/"+id, nil); !strings.Contains(page, "Review and reject") {
+		t.Error("the third reviewer isn't told their review rejects")
+	}
+	if loc := sabia.review("bolha-us", id, "reject", "agreed, no"); !strings.Contains(loc, "done=rejected") {
+		t.Fatalf("third reject: %s", loc)
+	}
+	if _, by := w.bolha.state(id); by != "token-sabia" {
+		t.Errorf("rejected with %q, want the last reviewer's own token", by)
+	}
+	if w.escalated("bolha-us", id) {
+		t.Error("a reject quorum should not escalate")
+	}
+	var detail string
+	w.srv.db.pool.QueryRow(context.Background(), `SELECT detail FROM audit_log WHERE request_id = $1 AND action = 'reject_quorum'`, id).Scan(&detail)
+	if detail != "reject quorum: @p1 + @p2 + @sabia" {
+		t.Errorf("audit: %q", detail)
+	}
+}
+
+// Two rejections are not a quorum; they still block an automatic approval.
+func TestTwoRejectionsAreNotAQuorum(t *testing.T) {
+	w := newWorld(t)
+	id := uniq()
+	w.bolha.add(id, "eli", "eli@example.org", "hello")
+	p1, p2 := w.login("p1"), w.login("p2")
+	p1.review("bolha-us", id, "reject", "spam ring")
+	p2.review("bolha-us", id, "reject", "agreed")
+	if _, by := w.bolha.state(id); by != "" {
+		t.Error("two rejections rejected on their own")
+	}
+}
+
 func TestFailedChecksKeepTheQuorumFromApproving(t *testing.T) {
 	w := newWorld(t)
 	a, b := uniq(), uniq()

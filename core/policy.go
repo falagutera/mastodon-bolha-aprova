@@ -37,20 +37,32 @@ const (
 	verdictInfo    = "info"
 )
 
+// rejectQuorum is how many moderator rejections reject a request on their own,
+// mirroring the approval quorum. Fixed, not per-profile: the rule is "three
+// moderators said no". A reject that does not reach it still blocks an automatic
+// approval (tally.Blocked), exactly as before.
+const rejectQuorum = 3
+
 // tally is where a request stands in its current round.
 type tally struct {
-	Approvals int      `json:"approvals"` // that count toward the quorum
-	Needed    int      `json:"needed"`
-	Rejects   int      `json:"rejects"`
-	Infos     int      `json:"infos"`
-	Conflict  bool     `json:"conflict"` // approvals and rejects at once
-	Blocked   bool     `json:"blocked"`  // a reject stops the automatic approval
-	ChecksOK  bool     `json:"checks_ok"`
-	Failing   []string `json:"failing"` // required checks that failed or are missing
+	Approvals   int      `json:"approvals"` // that count toward the approval quorum
+	Needed      int      `json:"needed"`
+	Rejects     int      `json:"rejects"`      // any reviewer; blocks an automatic approval
+	RejectVotes int      `json:"reject_votes"` // that count toward the reject quorum
+	Infos       int      `json:"infos"`
+	Conflict    bool     `json:"conflict"` // approvals and rejects at once
+	Blocked     bool     `json:"blocked"`  // a reject stops the automatic approval
+	ChecksOK    bool     `json:"checks_ok"`
+	Failing     []string `json:"failing"` // required checks that failed or are missing
 }
 
 // Ready reports whether the quorum approves the request.
 func (t tally) Ready() bool { return t.Approvals >= t.Needed && !t.Blocked && t.ChecksOK }
+
+// ReadyReject reports whether enough moderators rejected to reject on their own.
+// Unlike Ready it ignores required checks: a check is a reason to approve with
+// care, never a reason to keep a rejected request open.
+func (t tally) ReadyReject() bool { return t.RejectVotes >= rejectQuorum }
 
 // count applies the profile's review rules to the current round. When the
 // request is escalated, only escalate_to votes count toward the quorum.
@@ -71,6 +83,9 @@ func (p *Profile) count(escalated bool, reviews []review, checks []module.Check)
 			}
 		case verdictReject:
 			t.Rejects++
+			if p.canReview(r.ReviewerRole) && (!escalated || hasRole(r.ReviewerRole, p.EscalateTo)) {
+				t.RejectVotes++
+			}
 		case verdictInfo:
 			t.Infos++
 		}
