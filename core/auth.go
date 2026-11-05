@@ -218,7 +218,10 @@ func (s *Server) revokeLater(token string) {
 // older than a minute: losing a role there takes effect here right away.
 func (s *Server) current(w http.ResponseWriter, r *http.Request) (session, bool, bool) {
 	c, err := r.Cookie(sessionCookie)
-	if err != nil || c.Value == "" {
+	// An API token (aprova_...) must never authenticate a browser session: its
+	// own row is keyed by hashID(apiTokenPrefix+id), and a bare id sent as the
+	// cookie is refused here too, so it can't be replayed as a UI session.
+	if err != nil || c.Value == "" || strings.HasPrefix(c.Value, apiTokenPrefix) {
 		return session{}, false, false
 	}
 	sess, err := s.db.session(r.Context(), s.tokenBox, hashID(c.Value))
@@ -269,7 +272,9 @@ func (s *Server) recheck(ctx context.Context, sess session) (session, bool, erro
 // with the same lifetime and checks. The instance's token never leaves aprova.
 func (s *Server) handleAPIToken(w http.ResponseWriter, r *http.Request, sess session) {
 	id := randomToken()
-	tok := session{IDHash: hashID(id), AccountID: sess.AccountID, Acct: sess.Acct, Role: sess.Role, RoleChecked: sess.RoleChecked,
+	// Keyed by the prefixed token, so the browser-cookie path (hashID of the raw
+	// cookie value) can never resolve to an API session and mint more tokens.
+	tok := session{IDHash: hashID(apiTokenPrefix + id), AccountID: sess.AccountID, Acct: sess.Acct, Role: sess.Role, RoleChecked: sess.RoleChecked,
 		Token: sess.Token, TokenHash: sess.TokenHash, CSRF: randomToken(), Expires: time.Now().Add(sessionTTL)}
 	if err := s.db.createSession(r.Context(), s.tokenBox, tok); err != nil {
 		log.Printf("api token: %v", err)

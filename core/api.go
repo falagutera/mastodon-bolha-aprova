@@ -27,7 +27,7 @@ func (s *Server) apiSession(w http.ResponseWriter, r *http.Request) (session, bo
 		apiError(w, http.StatusUnauthorized, "missing_token")
 		return session{}, false
 	}
-	sess, err := s.db.session(r.Context(), s.tokenBox, hashID(id))
+	sess, err := s.db.session(r.Context(), s.tokenBox, hashID(apiTokenPrefix+id))
 	if errors.Is(err, errNoSession) {
 		apiError(w, http.StatusUnauthorized, "bad_token")
 		return session{}, false

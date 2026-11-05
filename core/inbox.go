@@ -163,22 +163,35 @@ func parseInbound(r io.Reader) (Inbound, error) {
 	}
 	in := Inbound{}
 	if ids := msgID.FindStringSubmatch(m.Header.Get("Message-Id")); ids != nil {
-		in.MessageID = ids[1]
+		in.MessageID = dropNUL(ids[1])
 	}
 	for _, h := range []string{"In-Reply-To", "References"} {
 		for _, ids := range msgID.FindAllStringSubmatch(m.Header.Get(h), 20) {
-			in.References = append(in.References, ids[1])
+			in.References = append(in.References, dropNUL(ids[1]))
 		}
 	}
 	if a, err := mail.ParseAddress(m.Header.Get("From")); err == nil {
-		in.From = strings.ToLower(a.Address)
+		in.From = dropNUL(strings.ToLower(a.Address))
 	}
 	body, err := textOf(m.Header.Get("Content-Type"), m.Header.Get("Content-Transfer-Encoding"), m.Body, 0)
 	if err != nil {
 		return in, err
 	}
-	in.Body = stripQuoted(body)
+	in.Body = dropNUL(stripQuoted(body))
 	return in, nil
+}
+
+// dropNUL removes NUL bytes. A U+0000 is valid UTF-8 but the database runs in
+// simple-protocol mode, where any argument carrying a NUL makes PostgreSQL
+// reject the whole statement ("invalid message format"). An inbound message
+// with a NUL in its headers or body would then fail every takeReply, never be
+// marked handled, and be re-read on each sweep until it fills the read window
+// and blocks all later replies. NUL never carries meaning in a reply, so drop it.
+func dropNUL(s string) string {
+	if !strings.ContainsRune(s, 0) {
+		return s
+	}
+	return strings.ReplaceAll(s, "\x00", "")
 }
 
 // textOf finds the readable text of a message: text/plain if there is one,
