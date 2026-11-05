@@ -1,0 +1,10 @@
+# gitleaks config for aprova. Keeps the default rules and allowlists the constant
+# secrets used only by the test suite (Go test fixtures), which are not real secrets.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures: constant secrets used only by the tests"
+paths = [
+  '''.*_test\.go$''',
+]

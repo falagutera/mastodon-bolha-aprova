@@ -1,6 +1,10 @@
 # Builds the image and publishes it to the images group (registry.gutocarvalho.net/images/aprova).
 # The version is in the VERSION file. Tags: X.Y.Z-BUILD (immutable, pin this one), X.Y.Z and latest.
-stages: [test, build]
+include:
+  - project: 'open/gcn/ci-templates'
+    file: '/security.yml'
+    ref: main
+stages: [security, test, build]
 
 test:
   stage: test
