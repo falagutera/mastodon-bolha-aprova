@@ -60,9 +60,12 @@ type tally struct {
 func (t tally) Ready() bool { return t.Approvals >= t.Needed && !t.Blocked && t.ChecksOK }
 
 // ReadyReject reports whether enough moderators rejected to reject on their own.
-// Unlike Ready it ignores required checks: a check is a reason to approve with
-// care, never a reason to keep a rejected request open.
-func (t tally) ReadyReject() bool { return t.RejectVotes >= rejectQuorum }
+// It yields to a conflict exactly as Ready yields to a reject (Blocked): when an
+// approval contends, the request is not decided automatically in either
+// direction — the on_conflict rule (escalate, or leave it for a human) runs
+// instead. Unlike Ready it ignores required checks: a check is a reason to
+// approve with care, never a reason to keep a rejected request open.
+func (t tally) ReadyReject() bool { return t.RejectVotes >= rejectQuorum && !t.Conflict }
 
 // count applies the profile's review rules to the current round. When the
 // request is escalated, only escalate_to votes count toward the quorum.

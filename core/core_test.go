@@ -164,6 +164,22 @@ func TestRejectQuorumRejectsWithTheLastReviewersToken(t *testing.T) {
 	}
 }
 
+// A reject quorum needs no contending approval: an approval in the mix is a
+// conflict, and a conflict is decided by the on_conflict rule, never by an
+// automatic rejection. Mirrors how one reject blocks an automatic approval.
+func TestRejectQuorumYieldsToAConflict(t *testing.T) {
+	p := &Profile{Approve: []string{"mod"}, Review: ReviewConfig{Quorum: 3}}
+	r := func(id, v string) review { return review{ReviewerID: id, ReviewerRole: "mod", Verdict: v} }
+	clean := []review{r("a", "reject"), r("b", "reject"), r("c", "reject")}
+	if !p.count(false, clean, nil).ReadyReject() {
+		t.Error("three clean rejections are not a reject quorum")
+	}
+	conflicted := []review{r("a", "reject"), r("b", "reject"), r("c", "reject"), r("d", "approve")}
+	if p.count(false, conflicted, nil).ReadyReject() {
+		t.Error("rejected automatically despite a contending approval")
+	}
+}
+
 // Two rejections are not a quorum; they still block an automatic approval.
 func TestTwoRejectionsAreNotAQuorum(t *testing.T) {
 	w := newWorld(t)
