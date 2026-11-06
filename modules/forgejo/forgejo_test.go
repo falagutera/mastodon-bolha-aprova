@@ -181,7 +181,7 @@ func TestSourceUsesOnlyTheUserPaths(t *testing.T) {
 	}
 }
 
-func TestActiveOrUsedAccountsAreNeverDeleted(t *testing.T) {
+func TestActiveOrBlockedAccountsAreNeverDeleted(t *testing.T) {
 	ctx := context.Background()
 	f, srv := newFake(t)
 	m := newModule(t, srv)
@@ -197,13 +197,15 @@ func TestActiveOrUsedAccountsAreNeverDeleted(t *testing.T) {
 		t.Errorf("rejected an account activated meanwhile: %v", err)
 	}
 
-	// Inactive but signed in at some point.
+	// Inactive but signed in before approval: a sign-in no longer protects a
+	// pending sign-up (unapproved login only reaches an info page), so a reject
+	// still deletes it — bots included.
 	f.Add(module.Request{ID: "32", Username: "bia", Email: "bia@example.org"})
 	f.mu.Lock()
 	f.users["32"].LastLogin = time.Now()
 	f.mu.Unlock()
-	if err := m.Reject(ctx, module.Actor{}, "32"); !errors.Is(err, module.ErrGone) || f.Rejected("32") {
-		t.Errorf("rejected an account that signed in: %v", err)
+	if err := m.Reject(ctx, module.Actor{}, "32"); err != nil || !f.Rejected("32") {
+		t.Errorf("did not delete a signed-in pending account: %v", err)
 	}
 
 	// Blocked by moderation: not a sign-up, neither listed nor touched.

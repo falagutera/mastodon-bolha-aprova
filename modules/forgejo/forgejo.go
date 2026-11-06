@@ -6,8 +6,9 @@
 // The token is a site admin's (read:admin, write:admin, read:user), so it can do
 // anything on the instance. This module only ever calls the paths in the
 // package's tests. Requests are known by the account's numeric id; the login
-// used in the admin paths comes from Forgejo itself. Before deleting it checks again that the account was
-// never activated and never signed in.
+// used in the admin paths comes from Forgejo itself. Before deleting it checks
+// again that the account is still a pending sign-up (not activated, not blocked);
+// a sign-in before approval does not protect it.
 package forgejo
 
 import (
@@ -89,10 +90,6 @@ type user struct {
 // pending is an account waiting for manual confirmation. A blocked account
 // (prohibit_login) is a moderation decision, not a sign-up.
 func (u user) pending() bool { return !u.Active && !u.ProhibitLogin }
-
-// used is any sign the account was ever in use. Forgejo reports a never-set
-// last login as the Unix epoch.
-func (u user) used() bool { return u.LastLogin.Unix() > 0 }
 
 func (u user) request() module.Request {
 	return module.Request{ID: strconv.FormatInt(u.ID, 10), Username: u.Login, Email: u.Email, Reason: u.Description, Created: u.Created}
@@ -222,8 +219,12 @@ func (f *forgejo) Approve(ctx context.Context, _ module.Actor, id string) error 
 	return status(resp)
 }
 
-// Reject deletes the account. It re-reads it right before, and refuses unless it
-// is still an inactive account that never signed in.
+// Reject deletes the account. It re-reads it right before, and refuses only if
+// the account is no longer a pending sign-up — i.e. it was activated (approved)
+// or blocked (prohibit_login) meanwhile. A pending account that merely signed in
+// before approval IS deleted: on a manual-confirm instance an unapproved login
+// only reaches an info page, so a reject (with the admin's justification) must
+// always remove the account, bots included.
 func (f *forgejo) Reject(ctx context.Context, _ module.Actor, id string) error {
 	if !idPattern.MatchString(id) {
 		return module.ErrGone
@@ -232,7 +233,7 @@ func (f *forgejo) Reject(ctx context.Context, _ module.Actor, id string) error {
 	if err != nil {
 		return err
 	}
-	if !found || !u.pending() || u.used() {
+	if !found || !u.pending() {
 		return module.ErrGone
 	}
 	resp, err := f.do(ctx, http.MethodDelete, pathAdmin+"/"+url.PathEscape(u.Login)+"?purge=true", nil)
