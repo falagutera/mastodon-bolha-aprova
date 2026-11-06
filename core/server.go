@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.gutocarvalho.net/open/aprova/internal/relnotes"
 	"gitlab.gutocarvalho.net/open/aprova/module"
 )
 
@@ -28,6 +29,9 @@ var assetFS embed.FS
 
 // Version is set by main.
 var Version = "dev"
+
+// Releases feed the release notes page; main sets them from CHANGELOG.md.
+var Releases []relnotes.Release
 
 type service struct {
 	id      string
@@ -266,6 +270,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /queue", s.page(s.handleQueue))
 	mux.HandleFunc("GET /audit", s.page(s.handleAudit))
 	mux.HandleFunc("GET /release-notes", s.page(s.handleNotes))
+	mux.HandleFunc("GET /release-notes.json", func(w http.ResponseWriter, r *http.Request) {
+		relnotes.JSONHandler("aprova", Version, Releases).ServeHTTP(w, r)
+	})
 	mux.HandleFunc("GET /r/{service}/{id}", s.page(s.handleRequest))
 	for _, a := range actions {
 		mux.HandleFunc("POST /r/{service}/{id}/"+a, s.action(s.handleAct(a)))
@@ -303,7 +310,7 @@ type viewData struct {
 	Nav      string
 	Modules  []string
 	TeamChat string
-	Releases []release
+	Releases template.HTML
 	Message  string
 	Profiles []profileView
 	Filter   string
@@ -559,6 +566,6 @@ func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request, sess sessio
 
 func (s *Server) handleNotes(w http.ResponseWriter, r *http.Request, sess session) {
 	v := s.view(r, sess, "notes")
-	v.Releases = releases
+	v.Releases = relnotes.HTML(Releases)
 	s.render(w, "notes.html", http.StatusOK, v)
 }

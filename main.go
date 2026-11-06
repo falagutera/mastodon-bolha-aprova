@@ -18,6 +18,7 @@ import (
 	_ "time/tzdata"
 
 	"gitlab.gutocarvalho.net/open/aprova/core"
+	"gitlab.gutocarvalho.net/open/aprova/internal/relnotes"
 	_ "gitlab.gutocarvalho.net/open/aprova/modules/all"
 )
 
@@ -26,6 +27,11 @@ import (
 //
 //go:embed VERSION
 var versionFile string
+
+// The release notes page and /release-notes.json come from CHANGELOG.md.
+//
+//go:embed CHANGELOG.md
+var changelog string
 
 var build = "dev"
 
@@ -45,6 +51,7 @@ func main() {
 		return
 	}
 	core.Version = strings.TrimSpace(versionFile) + "-" + build
+	core.Releases = relnotes.MustParse(changelog)
 	if *path == "" {
 		log.Fatal("set APROVA_CONFIG or -config")
 	}

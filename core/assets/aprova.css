@@ -70,3 +70,7 @@ fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; 
 .alerts li small { display: block; color: var(--ink); opacity: .8; }
 .allclear { padding: .45rem .7rem; border-radius: 8px; background: var(--ok-soft); color: var(--ok); margin: .3rem 0; }
 .checked { font-size: .85rem; color: var(--muted); margin: .3rem 0 1rem; }
+/* release notes (shared relnotes markup) */
+.relnotes .release { margin: 1.4rem 0; } .relnotes h2 { margin-bottom: .3rem; }
+.relnotes h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: .8rem 0 .2rem; }
+.relnotes .summary { margin: .2rem 0 .4rem; }
