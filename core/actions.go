@@ -39,6 +39,7 @@ type requestView struct {
 	Round         int            `json:"round"`
 	Escalated     bool           `json:"escalated"`
 	Awaiting      string         `json:"awaiting"`
+	Undeliverable bool           `json:"undeliverable"` // the question e-mail bounced
 	Decision      string         `json:"decision"`
 	DecidedBy     string         `json:"decided_by"`
 	Checks        []module.Check `json:"checks"`
@@ -106,7 +107,7 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 	}
 	caps := svc.mod.Caps()
 	rv := requestView{Service: svc.id, ServiceName: svc.cfg.Name, ID: id, Pending: pending && st.Decision == "",
-		Username: st.Username, Round: st.Round, Escalated: st.Escalated,
+		Username: st.Username, Round: st.Round, Escalated: st.Escalated, Undeliverable: st.Undeliverable,
 		Decision: st.Decision, DecidedBy: st.DecidedBy, SilentReject: caps.SilentReject, SendsWelcome: caps.SendsWelcome, NoReason: caps.NoReason}
 	// The app's data about an account is shown only while it is a pending request:
 	// the module's credentials can read any account, not just applicants.

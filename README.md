@@ -6,6 +6,7 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 - **Checks:** signs of automated sign-ups and disposable e-mail (domain or MX host) keep the quorum from approving.
 - **Discussion:** internal comments on each request. The applicant never sees them.
 - **Ask the applicant:** an e-mail with the moderator's question; the request waits, and the answer starts a new round of reviews. With `APROVA_IMAP_*` set, aprova reads the reply-to mailbox every minute and attaches the answer itself: it matches the question's Message-ID, accepts only the applicant's own address (kept as a hash), and drops the quoted text. Moderators can still paste an answer by hand.
+- **Bounces:** if the question e-mail comes back undeliverable (a non-existent address), aprova flags the request "e-mail not delivered" in the panel, so a fake sign-up is easy to reject. It reads the sender mailbox too, once a minute (see *Mail*). Off by default it only flags; `auto_reject_on_bounce: true` makes a bounce reject the request on its own (never for `auth: moderator` services, which have no system token).
 - **Edits:** authors fix their own comments; the old text goes to the decision log.
 - **Escalation:** to the senior roles of a profile, who then decide alone.
 - **Notices:** a digest of pending sign-ups and escalations, by Mattermost webhook and/or direct messages from a bot account on the instance. Both off unless configured; each moderator can turn the bot's messages off in the panel. Messages never carry e-mails or reasons.
@@ -50,6 +51,15 @@ A module is a package under `modules/` that implements `module.Module` (`Pending
 2. Create the database and apply `schema.sql` as its owner. The app user can't change the schema and can only add to the comments and the log.
 
 3. Copy `config.example.yaml` and `.env.example`, fill them in, and run the image behind HTTPS (the session cookie needs it).
+
+## Mail
+
+Asking the applicant, reading answers and spotting bounces use two mailboxes, both read over IMAPS once a minute:
+
+- **Sender** — `APROVA_SMTP_USER` (e.g. `aprova@bolha.us`). Questions go out from here (`profiles.*.mail.from`), so it is also the envelope sender: **delivery-status notifications (bounces) return to it.** aprova reads it with the SMTP credentials — on a mail server where one account shares its password across SMTP and IMAP (poste.io, Dovecot, and most others), no extra secret is needed. A failed bounce is matched to its request by the question's Message-ID (carried in the returned message), then the request is flagged and, with `auto_reject_on_bounce`, rejected.
+- **Reply-to** — `APROVA_IMAP_USER` (e.g. `cadastro@bolha.us`), set in `profiles.*.mail.reply_to`. Applicants reply here; aprova attaches the answer.
+
+Keep the two addresses **different**: the readers both mark messages seen, so a bounce landing in the reply mailbox would be marked seen before it could be read as a bounce. Bounce reading turns on only when `APROVA_IMAP_HOST` and `APROVA_SMTP_USER` are set and the two users differ. `auto_reject_on_bounce` (top-level, default `false`) never applies to `auth: moderator` services — a system reject has no moderator token to act with, so those are only flagged.
 
 ## API
 

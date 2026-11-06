@@ -25,6 +25,10 @@ type Config struct {
 	Services map[string]*ServiceConfig `yaml:"services"`
 	Profiles map[string]*Profile       `yaml:"profiles"`
 	Checks   ChecksConfig              `yaml:"checks"`
+	// AutoRejectOnBounce rejects a request on its own when the question e-mail
+	// bounces (undeliverable). Off by default: a bounce only flags the request.
+	// Never applies to auth: moderator services (no system token to act with).
+	AutoRejectOnBounce bool `yaml:"auto_reject_on_bounce"`
 
 	// From the environment.
 	ClientID, ClientSecret, EncryptionKey  string

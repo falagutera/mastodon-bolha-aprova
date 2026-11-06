@@ -55,6 +55,50 @@ func TestHTMLOnlyAndLatin1(t *testing.T) {
 	}
 }
 
+func bounceDSN(questionID, recipient string) string {
+	return "From: Mail Delivery System <MAILER-DAEMON@mail.example.com>\r\n" +
+		"To: <aprova@bolha.us>\r\n" +
+		"Message-ID: <dsn-abc@mail.example.com>\r\n" +
+		"Subject: Undelivered Mail Returned to Sender\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: multipart/report; report-type=delivery-status; boundary=\"B\"\r\n\r\n" +
+		"--B\r\nContent-Type: text/plain; charset=us-ascii\r\n\r\n" +
+		"This is the mail system. Delivery failed.\r\n\r\n" +
+		"--B\r\nContent-Type: message/delivery-status\r\n\r\n" +
+		"Reporting-MTA: dns; mail.example.com\r\n\r\n" +
+		"Final-Recipient: rfc822; " + recipient + "\r\n" +
+		"Action: failed\r\n" +
+		"Status: 5.1.1\r\n" +
+		"Diagnostic-Code: smtp; 550 5.1.1 <" + recipient + ">: User unknown\r\n\r\n" +
+		"--B\r\nContent-Type: message/rfc822\r\n\r\n" +
+		"Message-ID: <" + questionID + ">\r\n" +
+		"To: " + recipient + "\r\n" +
+		"From: aprova@bolha.us\r\n" +
+		"Subject: your request\r\n\r\n" +
+		"Which collective are you part of?\r\n" +
+		"--B--\r\n"
+}
+
+func TestParseBounce(t *testing.T) {
+	in, err := parseInbound(strings.NewReader(bounceDSN("aprova.q123@bolha.us", "nouser@example.org")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !in.IsBounce || in.BounceOf != "aprova.q123@bolha.us" || in.BounceRecipient != "nouser@example.org" {
+		t.Errorf("bounce: %+v", in)
+	}
+	// A normal reply is not a bounce.
+	ok, _ := parseInbound(strings.NewReader("Message-ID: <r@ex>\r\nFrom: gil@example.org\r\nReferences: <aprova.q@bolha.us>\r\n\r\nhi"))
+	if ok.IsBounce {
+		t.Errorf("reply flagged as bounce: %+v", ok)
+	}
+	// A delayed (not failed) DSN is not a bounce.
+	delayed := strings.Replace(bounceDSN("aprova.q@bolha.us", "slow@example.org"), "Action: failed", "Action: delayed", 1)
+	if d, _ := parseInbound(strings.NewReader(delayed)); d.IsBounce {
+		t.Errorf("delayed DSN flagged as bounce: %+v", d)
+	}
+}
+
 type fakeInbox struct {
 	mu   sync.Mutex
 	msgs []Inbound
@@ -130,5 +174,85 @@ func TestAnswersComeFromTheMailbox(t *testing.T) {
 	// It shows on the page as the applicant's.
 	if _, _, body := p1.do("GET", "/r/bolha-us/"+id, nil); !strings.Contains(body, "Recife.") {
 		t.Error("answer not on the page")
+	}
+}
+
+// askQuestion drives one info question on jornalismo (auth: token) and returns
+// the request id and the question's Message-ID, so a bounce can be matched.
+func askQuestion(t *testing.T, w *world, email string) (string, string) {
+	t.Helper()
+	id := uniq()
+	w.jorn.add(id, "no", email, "a reason")
+	p1 := w.login("p1")
+	p1.review("jornalismo", id, "info", "Which paper?")
+	if len(w.mail.sent) == 0 {
+		t.Fatal("no question sent")
+	}
+	mid := w.mail.sent[len(w.mail.sent)-1].MessageID
+	if !strings.HasPrefix(mid, "aprova.") {
+		t.Fatalf("question has no Message-ID: %q", mid)
+	}
+	return id, mid
+}
+
+func TestBounceFlagsRequest(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	id, mid := askQuestion(t, w, "nouser@example.org")
+	bounce := &fakeInbox{done: map[uint32]bool{}, msgs: []Inbound{
+		{UID: 1, MessageID: "dsn1@mx", IsBounce: true, BounceOf: mid, BounceRecipient: "nouser@example.org"},
+	}}
+	w.srv.bounce = bounce
+	w.srv.readBounces(ctx)
+	w.srv.readBounces(ctx) // a second replica, or next minute: still once
+
+	st, _ := w.srv.db.state(ctx, "jornalismo", id)
+	if !st.Undeliverable {
+		t.Error("not flagged undeliverable")
+	}
+	if st.AwaitingSince != nil {
+		t.Error("still awaiting after bounce")
+	}
+	if st.Decision != "" {
+		t.Errorf("rejected without the toggle: %q", st.Decision)
+	}
+	if _, rej := w.jorn.state(id); rej != "" {
+		t.Errorf("module reject without the toggle: %q", rej)
+	}
+	list, _ := w.srv.db.comments(ctx, "jornalismo", id)
+	n := 0
+	for _, c := range list {
+		if c.Kind == kindBounce {
+			n++
+			if !strings.Contains(c.Body, "nouser@example.org") || c.Author != "" {
+				t.Errorf("bounce comment: %+v", c)
+			}
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d bounce comments", n)
+	}
+}
+
+func TestBounceAutoRejects(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	w.srv.cfg.AutoRejectOnBounce = true
+	id, mid := askQuestion(t, w, "nouser2@example.org")
+	bounce := &fakeInbox{done: map[uint32]bool{}, msgs: []Inbound{
+		{UID: 1, MessageID: "dsn2@mx", IsBounce: true, BounceOf: mid, BounceRecipient: "nouser2@example.org"},
+	}}
+	w.srv.bounce = bounce
+	w.srv.readBounces(ctx)
+
+	st, _ := w.srv.db.state(ctx, "jornalismo", id)
+	if st.Decision != "rejected" {
+		t.Errorf("not rejected: %q", st.Decision)
+	}
+	if !st.Undeliverable {
+		t.Error("not flagged undeliverable")
+	}
+	if _, rej := w.jorn.state(id); rej == "" {
+		t.Error("the module was not told to reject")
 	}
 }

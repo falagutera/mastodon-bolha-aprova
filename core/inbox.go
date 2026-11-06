@@ -2,6 +2,7 @@ package core
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -26,13 +27,19 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Inbound is one e-mail in the reply-to mailbox.
+// Inbound is one e-mail in a mailbox aprova reads (the reply-to mailbox, or the
+// sender mailbox for bounces).
 type Inbound struct {
 	UID        uint32
 	MessageID  string
 	References []string // In-Reply-To and References, message ids without <>
 	From       string   // bare address, lower case
 	Body       string   // the new text, without the quoted message
+
+	// Set for a bounce (a delivery-status notification reporting a failure).
+	IsBounce        bool
+	BounceOf        string // Message-ID of the original question, without <>
+	BounceRecipient string // the address that failed, lower case
 }
 
 // Inbox reads the mailbox applicants answer to. Done marks a message handled,
@@ -157,7 +164,11 @@ func (b *imapInbox) Done(ctx context.Context, uid uint32) error {
 var msgID = regexp.MustCompile(`<([^<>\s]{1,250})>`)
 
 func parseInbound(r io.Reader) (Inbound, error) {
-	m, err := mail.ReadMessage(bufio.NewReader(r))
+	raw, err := io.ReadAll(io.LimitReader(r, maxInbound))
+	if err != nil {
+		return Inbound{}, err
+	}
+	m, err := mail.ReadMessage(bytes.NewReader(raw))
 	if err != nil {
 		return Inbound{}, err
 	}
@@ -173,12 +184,109 @@ func parseInbound(r io.Reader) (Inbound, error) {
 	if a, err := mail.ParseAddress(m.Header.Get("From")); err == nil {
 		in.From = dropNUL(strings.ToLower(a.Address))
 	}
+	// A bounce is a delivery-status notification: multipart/report with
+	// report-type=delivery-status (RFC 3464), usually from mailer-daemon.
+	if isDSN(m.Header.Get("Content-Type"), in.From) {
+		fillBounce(&in, raw)
+	}
 	body, err := textOf(m.Header.Get("Content-Type"), m.Header.Get("Content-Transfer-Encoding"), m.Body, 0)
 	if err != nil {
 		return in, err
 	}
 	in.Body = dropNUL(stripQuoted(body))
 	return in, nil
+}
+
+// isDSN recognises a delivery-status notification: a multipart/report of
+// report-type delivery-status, or a message from the mailer-daemon/postmaster.
+func isDSN(ctype, from string) bool {
+	if strings.HasPrefix(from, "mailer-daemon@") || strings.HasPrefix(from, "postmaster@") {
+		return true
+	}
+	mt, params, err := mime.ParseMediaType(ctype)
+	if err != nil {
+		return false
+	}
+	return mt == "multipart/report" && strings.EqualFold(params["report-type"], "delivery-status")
+}
+
+// fillBounce walks a DSN for a failed delivery: the per-recipient
+// message/delivery-status part gives the Action and Final-Recipient; the
+// returned original message (message/rfc822 or text/rfc822-headers) gives the
+// question's Message-ID. IsBounce is set only when some recipient Action is
+// "failed". A fallback uses In-Reply-To/References when the original Message-ID
+// is not embedded.
+func fillBounce(in *Inbound, raw []byte) {
+	m, err := mail.ReadMessage(bytes.NewReader(raw))
+	if err != nil {
+		return
+	}
+	_, params, err := mime.ParseMediaType(m.Header.Get("Content-Type"))
+	if err != nil {
+		return
+	}
+	mr := multipart.NewReader(m.Body, params["boundary"])
+	for {
+		p, err := mr.NextPart()
+		if err != nil {
+			break
+		}
+		pmt, _, _ := mime.ParseMediaType(p.Header.Get("Content-Type"))
+		switch pmt {
+		case "message/delivery-status":
+			b, _ := io.ReadAll(io.LimitReader(p, maxInbound))
+			parseDeliveryStatus(in, string(b))
+		case "message/rfc822", "text/rfc822-headers":
+			b, _ := io.ReadAll(io.LimitReader(p, maxInbound))
+			if om, err := mail.ReadMessage(bufio.NewReader(bytes.NewReader(b))); err == nil {
+				if ids := msgID.FindStringSubmatch(om.Header.Get("Message-Id")); ids != nil {
+					in.BounceOf = dropNUL(ids[1])
+				}
+				if in.BounceRecipient == "" {
+					if a, err := mail.ParseAddress(om.Header.Get("To")); err == nil {
+						in.BounceRecipient = dropNUL(strings.ToLower(a.Address))
+					}
+				}
+			}
+		}
+	}
+	if in.BounceOf == "" && len(in.References) > 0 {
+		in.BounceOf = in.References[0]
+	}
+}
+
+var dsnAddr = regexp.MustCompile(`(?i)rfc822;\s*<?([^\s<>]+@[^\s<>]+?)>?\s*$`)
+
+// parseDeliveryStatus reads the per-recipient fields of a message/delivery-status
+// body. It sets IsBounce when a recipient's Action is "failed", and records the
+// failed Final-Recipient (or Original-Recipient) address.
+func parseDeliveryStatus(in *Inbound, body string) {
+	var failed bool
+	var recip string
+	for _, line := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
+		k, v, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		k = strings.ToLower(strings.TrimSpace(k))
+		v = strings.TrimSpace(v)
+		switch k {
+		case "action":
+			if strings.EqualFold(v, "failed") {
+				failed = true
+			}
+		case "final-recipient", "original-recipient":
+			if m := dsnAddr.FindStringSubmatch(v); m != nil && recip == "" {
+				recip = dropNUL(strings.ToLower(m[1]))
+			}
+		}
+	}
+	if failed {
+		in.IsBounce = true
+		if recip != "" {
+			in.BounceRecipient = recip
+		}
+	}
 }
 
 // dropNUL removes NUL bytes. A U+0000 is valid UTF-8 but the database runs in
@@ -418,6 +526,91 @@ func (s *Server) takeReply(ctx context.Context, m Inbound) error {
 		}
 		return audit(ctx, tx, auditEntry{Profile: svc.profile.id, Service: svc.id,
 			RequestID: requestID, Username: username, Action: "answer_mail", Result: "ok"})
+	})
+}
+
+// readBounces flags requests whose question e-mail bounced. The bounce mailbox
+// is the sender account (SMTP user), where delivery-status notifications return;
+// it is read like the reply mailbox, once a minute.
+func (s *Server) readBounces(ctx context.Context) {
+	if s.bounce == nil {
+		return
+	}
+	msgs, err := s.bounce.Unread(ctx)
+	if err != nil {
+		log.Printf("bounce: %v", err)
+		return
+	}
+	for _, m := range msgs {
+		if err := s.takeBounce(ctx, m); err != nil {
+			log.Printf("bounce: uid %d: %v", m.UID, err)
+			continue
+		}
+		if err := s.bounce.Done(ctx, m.UID); err != nil {
+			log.Printf("bounce: mark uid %d: %v", m.UID, err)
+		}
+	}
+}
+
+func (s *Server) takeBounce(ctx context.Context, m Inbound) error {
+	if !m.IsBounce || m.BounceOf == "" {
+		return nil // not a failure we can match; a human sees the copy
+	}
+	// The bounced question's Message-ID is random and only ever went out on one
+	// request, so it alone identifies the request.
+	var service, requestID, username string
+	var round int
+	err := s.db.pool.QueryRow(ctx, `SELECT service, request_id, username, round FROM asked
+		WHERE message_id = $1`, m.BounceOf).Scan(&service, &requestID, &username, &round)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	svc, ok := s.services[service]
+	if !ok {
+		return nil
+	}
+	recip := m.BounceRecipient
+	note := strs(s.cfg.Lang)["bounce_note"]
+	if recip != "" {
+		note = recip + " — " + note
+	}
+	return s.db.withRequest(ctx, svc.id, requestID, username, func(tx pgx.Tx, st reqState) error {
+		// Dedup so two replicas, or a re-read, act once. The DSN's own Message-ID
+		// is unique; some lack one, so fall back to a per-question key.
+		key := m.MessageID
+		if key == "" {
+			key = "bounce:" + m.BounceOf
+		}
+		tag, err := tx.Exec(ctx, `INSERT INTO inbound (message_id) VALUES ($1) ON CONFLICT DO NOTHING`, key)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 || st.Decision != "" {
+			return nil
+		}
+		if err := addComment(ctx, tx, st, "", "", kindBounce, note); err != nil {
+			return err
+		}
+		if err := setAwaiting(ctx, tx, st, false); err != nil {
+			return err
+		}
+		action, result := "bounce", "ok"
+		// Auto-reject only when turned on and the service acts with its own token:
+		// an auth: moderator service has no system token, so it only gets flagged.
+		if s.cfg.AutoRejectOnBounce && svc.cfg.Auth != "moderator" {
+			res, err := s.execute(ctx, tx, svc, session{}, st, "reject")
+			if err != nil {
+				return err // transient: left unread, retried next minute
+			}
+			if err := addComment(ctx, tx, st, "", "", kindRejectReason, note); err != nil {
+				return err
+			}
+			action, result = "reject_bounce", res
+		}
+		return audit(ctx, tx, auditEntry{Profile: svc.profile.id, Service: svc.id,
+			RequestID: requestID, Username: username, Action: action, Result: result})
 	})
 }
 

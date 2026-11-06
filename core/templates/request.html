@@ -11,6 +11,7 @@
 </dl>
 {{if $r.Escalated}}<p class="alert">{{.T.escalated_note}}</p>{{end}}
 {{if $r.Awaiting}}<p class="flash">{{.T.awaiting_note}} {{$r.Awaiting}}</p>{{end}}
+{{if $r.Undeliverable}}<p class="alert">{{.T.undeliverable_note}}</p>{{end}}
 {{else}}
 <p class="flash">{{.T.decided}}: {{if $r.Decision}}{{t .T (printf "decision_%s" $r.Decision)}}{{else}}{{.T.decision_gone}}{{end}}{{if $r.DecidedBy}} · @{{$r.DecidedBy}}{{end}}</p>
 {{end}}

@@ -26,6 +26,7 @@
     <span class="email">{{.Email}}</span>
     <span class="st st-{{.Status}}">{{t $.T (printf "status_%s" .Status)}}{{if or (eq .Status "reviewing") (eq .Status "ready")}} {{.Approvals}}/{{.Needed}}{{end}}{{if .Stale}} · {{$.T.stale}}{{end}}</span>
     {{range .Flags}}<span class="flag">{{t $.T (printf "check_%s" .)}}</span>{{end}}
+    {{if .Undeliverable}}<span class="flag">{{$.T.undeliverable}}</span>{{end}}
     <span class="when">{{.Created}}</span>
     {{if .Reason}}<p class="reason">{{.Reason}}</p>{{end}}
   </li>

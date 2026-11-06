@@ -48,6 +48,7 @@ type Server struct {
 	checks   *checker
 	mailer   Mailer
 	inbox    Inbox
+	bounce   Inbox // the sender mailbox, read for delivery-status notifications
 	mm       *mattermost
 }
 
@@ -57,7 +58,9 @@ type Options struct {
 	Mailer Mailer
 	// Inbox replaces the IMAP mailbox, for tests.
 	Inbox Inbox
-	MX    func(ctx context.Context, domain string) ([]*net.MX, error)
+	// Bounce replaces the sender mailbox read for bounces, for tests.
+	Bounce Inbox
+	MX     func(ctx context.Context, domain string) ([]*net.MX, error)
 }
 
 // New builds the server: it opens the database and every enabled service.
@@ -87,6 +90,14 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 	s.inbox = opt.Inbox
 	if s.inbox == nil && cfg.IMAPHost != "" {
 		s.inbox = &imapInbox{host: cfg.IMAPHost, port: cfg.IMAPPort, user: cfg.IMAPUser, pass: cfg.IMAPPass}
+	}
+	// Bounces return to the sender account (SMTP user), a different mailbox from
+	// the reply-to. Read it over IMAPS with the SMTP credentials (one account on
+	// the mail host). Skip when it is the same mailbox as the replies: readReplies
+	// would mark a bounce seen before readBounces could see it.
+	s.bounce = opt.Bounce
+	if s.bounce == nil && cfg.IMAPHost != "" && cfg.SMTPUser != "" && cfg.SMTPUser != cfg.IMAPUser {
+		s.bounce = &imapInbox{host: cfg.IMAPHost, port: cfg.IMAPPort, user: cfg.SMTPUser, pass: cfg.SMTPPass}
 	}
 	if s.mailer == nil && cfg.SMTPEnabled() {
 		s.mailer = &smtpMailer{host: cfg.SMTPHost, port: cfg.SMTPPort, user: cfg.SMTPUser, pass: cfg.SMTPPass, mode: cfg.SMTPTLS}
@@ -122,6 +133,7 @@ func (s *Server) Run(ctx context.Context) {
 			case <-t.C:
 				s.sweep(ctx)
 				s.readReplies(ctx)
+				s.readBounces(ctx)
 			}
 		}
 	}()
@@ -351,19 +363,20 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 // ---- queue
 
 type itemView struct {
-	Service   string   `json:"service"`
-	ID        string   `json:"id"`
-	Username  string   `json:"username"`
-	Email     string   `json:"email"`
-	Reason    string   `json:"reason"`
-	Created   string   `json:"created"`
-	Status    string   `json:"status"` // new, reviewing, ready, blocked, awaiting, escalated
-	Approvals int      `json:"approvals"`
-	Rejects   int      `json:"rejects"`
-	Needed    int      `json:"needed"`
-	Stale     bool     `json:"stale"`
-	Flags     []string `json:"flags"` // failed checks
-	CanBulk   bool     `json:"can_bulk"`
+	Service       string   `json:"service"`
+	ID            string   `json:"id"`
+	Username      string   `json:"username"`
+	Email         string   `json:"email"`
+	Reason        string   `json:"reason"`
+	Created       string   `json:"created"`
+	Status        string   `json:"status"` // new, reviewing, ready, blocked, awaiting, escalated
+	Approvals     int      `json:"approvals"`
+	Rejects       int      `json:"rejects"`
+	Needed        int      `json:"needed"`
+	Stale         bool     `json:"stale"`
+	Flags         []string `json:"flags"` // failed checks
+	Undeliverable bool     `json:"undeliverable"`
+	CanBulk       bool     `json:"can_bulk"`
 }
 
 type serviceView struct {
@@ -499,6 +512,7 @@ func (s *Server) serviceQueue(ctx context.Context, sess session, svc *service, d
 		it := itemView{Service: svc.id, ID: q.ID, Username: q.Username, Email: q.Email, Reason: q.Reason, Created: q.Created.Format(date),
 			Approvals: c[0], Rejects: c[1], Needed: svc.profile.Review.Quorum}
 		it.CanBulk = sv.CanBulk && svc.profile.canDecide(sess.Role, st.Escalated)
+		it.Undeliverable = st.Undeliverable
 		for _, chk := range s.checks.run(ctx, q, svc.mod.Caps().NoReason) {
 			if !chk.OK {
 				it.Flags = append(it.Flags, chk.Name)

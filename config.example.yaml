@@ -7,6 +7,11 @@ instance: https://example.social
 base_url: https://aprova.example.social
 lang: en            # en or pt-BR
 
+# When the question e-mail to an applicant bounces (undeliverable), the request
+# is flagged "e-mail not delivered" in the panel. Turn this on to also reject it
+# on its own. Off by default; never applies to auth: moderator services.
+# auto_reject_on_bounce: false
+
 # Modules to load: one, some, or all. Nothing else runs, opens connections or
 # reads secrets. An empty list stops aprova at startup.
 modules: [mastodon, gitlab]

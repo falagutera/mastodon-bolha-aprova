@@ -161,13 +161,19 @@ type reqState struct {
 	Decision      string
 	DecidedBy     string
 	DecidedAt     *time.Time
+	Undeliverable bool // the question e-mail bounced in the current round
 }
+
+// bounceExists is a correlated subquery: did the question e-mail bounce in the
+// request's current round? Kept out of the schema; a "bounce" comment carries it.
+const bounceExists = `EXISTS (SELECT 1 FROM comments c WHERE c.service = requests.service
+	AND c.request_id = requests.request_id AND c.round = requests.round AND c.kind = 'bounce')`
 
 func (s *store) state(ctx context.Context, service, id string) (reqState, error) {
 	st := reqState{Service: service, RequestID: id, Round: 1}
-	err := s.pool.QueryRow(ctx, `SELECT username, round, escalated, awaiting_since, decision, decided_by, decided_at
+	err := s.pool.QueryRow(ctx, `SELECT username, round, escalated, awaiting_since, decision, decided_by, decided_at, `+bounceExists+`
 		FROM requests WHERE service = $1 AND request_id = $2`, service, id).
-		Scan(&st.Username, &st.Round, &st.Escalated, &st.AwaitingSince, &st.Decision, &st.DecidedBy, &st.DecidedAt)
+		Scan(&st.Username, &st.Round, &st.Escalated, &st.AwaitingSince, &st.Decision, &st.DecidedBy, &st.DecidedAt, &st.Undeliverable)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return st, nil
 	}
@@ -180,7 +186,7 @@ func (s *store) states(ctx context.Context, service string, ids []string) (map[s
 	if len(ids) == 0 {
 		return out, nil
 	}
-	rows, err := s.pool.Query(ctx, `SELECT request_id, username, round, escalated, awaiting_since, decision
+	rows, err := s.pool.Query(ctx, `SELECT request_id, username, round, escalated, awaiting_since, decision, `+bounceExists+`
 		FROM requests WHERE service = $1 AND request_id = ANY($2)`, service, ids)
 	if err != nil {
 		return nil, err
@@ -188,7 +194,7 @@ func (s *store) states(ctx context.Context, service string, ids []string) (map[s
 	defer rows.Close()
 	for rows.Next() {
 		st := reqState{Service: service}
-		if err := rows.Scan(&st.RequestID, &st.Username, &st.Round, &st.Escalated, &st.AwaitingSince, &st.Decision); err != nil {
+		if err := rows.Scan(&st.RequestID, &st.Username, &st.Round, &st.Escalated, &st.AwaitingSince, &st.Decision, &st.Undeliverable); err != nil {
 			return nil, err
 		}
 		out[st.RequestID] = st
@@ -338,6 +344,7 @@ const (
 	kindRejectReason = "reject_reason"
 	kindApproveNote  = "approve_note"
 	kindSystem       = "system"
+	kindBounce       = "bounce" // the question e-mail came back undeliverable
 )
 
 func addComment(ctx context.Context, tx pgx.Tx, st reqState, authorID, authorAcct, kind, body string) error {
