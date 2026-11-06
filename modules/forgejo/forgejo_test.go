@@ -114,8 +114,12 @@ func newFake(t *testing.T) (*fake, *httptest.Server) {
 		if u.Active {
 			t.Errorf("deleted active user %s", login)
 		}
-		if r.URL.Query().Get("purge") != "true" {
-			t.Errorf("delete without purge")
+		purge := r.URL.Query().Get("purge") == "true"
+		if u.LastLogin.Unix() > 0 && purge {
+			t.Errorf("purged a signed-in account %s (should delete without purge)", login)
+		}
+		if u.LastLogin.Unix() <= 0 && !purge {
+			t.Errorf("delete without purge for a never-signed-in account %s", login)
 		}
 		delete(f.users, id)
 		f.rejected[id] = true
