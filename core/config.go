@@ -29,6 +29,9 @@ type Config struct {
 	// bounces (undeliverable). Off by default: a bounce only flags the request.
 	// Never applies to auth: moderator services (no system token to act with).
 	AutoRejectOnBounce bool `yaml:"auto_reject_on_bounce"`
+	// TeamChat is an optional link to the moderators' chat (e.g. a group invite),
+	// shown in the panel only to signed-in moderators. Empty hides it.
+	TeamChat string `yaml:"team_chat"`
 
 	// From the environment.
 	ClientID, ClientSecret, EncryptionKey  string
@@ -187,6 +190,11 @@ func (c *Config) validate(getenv func(string) string) error {
 	}
 	if c.SMTPTLS != "starttls" && c.SMTPTLS != "tls" {
 		return errors.New("APROVA_SMTP_TLS must be starttls or tls")
+	}
+	if c.TeamChat != "" {
+		if u, err := url.Parse(c.TeamChat); err != nil || u.Scheme != "https" || u.Host == "" {
+			return errors.New("team_chat must be an https URL")
+		}
 	}
 
 	// Modules: nothing is on unless listed.

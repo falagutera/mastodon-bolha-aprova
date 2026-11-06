@@ -1,0 +1,9 @@
+{{template "head" .}}
+<h1>{{.T.notes_title}}</h1>
+<p class="lede">{{.T.notes_lede}}</p>
+{{range .Releases}}<section class="release">
+  <h2>{{.Version}} <span class="when">· {{.Date}}</span></h2>
+  <ul>{{range .Notes}}<li>{{.}}</li>{{end}}</ul>
+</section>
+{{end}}
+{{template "foot" .}}

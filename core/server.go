@@ -265,6 +265,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /prefs", s.action(s.handlePrefs))
 	mux.HandleFunc("GET /queue", s.page(s.handleQueue))
 	mux.HandleFunc("GET /audit", s.page(s.handleAudit))
+	mux.HandleFunc("GET /release-notes", s.page(s.handleNotes))
 	mux.HandleFunc("GET /r/{service}/{id}", s.page(s.handleRequest))
 	for _, a := range actions {
 		mux.HandleFunc("POST /r/{service}/{id}/"+a, s.action(s.handleAct(a)))
@@ -301,6 +302,8 @@ type viewData struct {
 	Error    string
 	Nav      string
 	Modules  []string
+	TeamChat string
+	Releases []release
 	Message  string
 	Profiles []profileView
 	Filter   string
@@ -317,7 +320,7 @@ var flashes = []string{"prefs", "approved", "rejected", "reviewed", "escalated",
 func (s *Server) view(r *http.Request, sess session, nav string) viewData {
 	lang := language(r, s.cfg.Lang)
 	v := viewData{T: strs(lang), Lang: lang, Version: Version, Domain: hostOf(s.cfg.BaseURL), Acct: sess.Acct, Role: sess.Role,
-		CSRF: sess.CSRF, Nav: nav, Modules: s.cfg.Enabled(), Mail: s.mailer != nil, Filters: filters}
+		CSRF: sess.CSRF, Nav: nav, Modules: s.cfg.Enabled(), TeamChat: s.cfg.TeamChat, Mail: s.mailer != nil, Filters: filters}
 	if k := r.URL.Query().Get("done"); slices.Contains(flashes, k) {
 		v.Flash = v.T["flash_"+k]
 	}
@@ -552,4 +555,10 @@ func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request, sess sessio
 	}
 	v.Audit = list
 	s.render(w, "audit.html", http.StatusOK, v)
+}
+
+func (s *Server) handleNotes(w http.ResponseWriter, r *http.Request, sess session) {
+	v := s.view(r, sess, "notes")
+	v.Releases = releases
+	s.render(w, "notes.html", http.StatusOK, v)
 }
