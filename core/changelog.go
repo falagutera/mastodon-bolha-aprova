@@ -9,9 +9,9 @@ type release struct {
 }
 
 var releases = []release{
-	{"0.8.1", "2026-11-06", []string{
+	{"0.8.2", "2026-11-06", []string{
 		"Release notes page, reached from the top menu.",
-		"Optional team-chat link (config team_chat) shown in the panel to signed-in moderators only.",
+		"Optional team-chat link (env APROVA_TEAM_CHAT) shown in the panel to signed-in moderators only — kept out of the config file so a public repo never carries the invite.",
 	}},
 	{"0.8.0", "2026-11-05", []string{
 		"Bounce detection: when the question e-mail to an applicant is undeliverable, the request is flagged \"e-mail not delivered\", so a fake sign-up is easy to reject. Optional auto_reject_on_bounce rejects it on its own.",

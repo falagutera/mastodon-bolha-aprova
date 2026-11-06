@@ -12,10 +12,6 @@ lang: en            # en or pt-BR
 # on its own. Off by default; never applies to auth: moderator services.
 # auto_reject_on_bounce: false
 
-# Optional link to the moderators' chat (e.g. a group invite), shown in the
-# panel to signed-in moderators only. Must be https. Empty hides it.
-# team_chat: https://chat.example.com/xyz
-
 # Modules to load: one, some, or all. Nothing else runs, opens connections or
 # reads secrets. An empty list stops aprova at startup.
 modules: [mastodon, gitlab]

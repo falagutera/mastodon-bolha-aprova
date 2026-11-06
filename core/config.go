@@ -29,9 +29,6 @@ type Config struct {
 	// bounces (undeliverable). Off by default: a bounce only flags the request.
 	// Never applies to auth: moderator services (no system token to act with).
 	AutoRejectOnBounce bool `yaml:"auto_reject_on_bounce"`
-	// TeamChat is an optional link to the moderators' chat (e.g. a group invite),
-	// shown in the panel only to signed-in moderators. Empty hides it.
-	TeamChat string `yaml:"team_chat"`
 
 	// From the environment.
 	ClientID, ClientSecret, EncryptionKey  string
@@ -40,11 +37,15 @@ type Config struct {
 	SMTPHost, SMTPPort, SMTPUser, SMTPPass string
 	// The reply-to mailbox, read over IMAPS for the applicants' answers. Off when empty.
 	IMAPHost, IMAPPort, IMAPUser, IMAPPass string
-	SMTPTLS                                string
-	Listen                                 string
-	instanceHost                           string
-	enabled                                []string
-	serviceProfile                         map[string]string
+	// TeamChat is an optional https link to the moderators' chat (e.g. a group
+	// invite), shown in the panel only to signed-in moderators. It comes from the
+	// environment, not the YAML, so a public config repo never carries the invite.
+	TeamChat       string
+	SMTPTLS        string
+	Listen         string
+	instanceHost   string
+	enabled        []string
+	serviceProfile map[string]string
 }
 
 type ServiceConfig struct {
@@ -147,6 +148,7 @@ func ParseConfig(raw []byte, getenv func(string) string) (*Config, error) {
 	c.SMTPHost, c.SMTPPort, c.SMTPUser, c.SMTPPass = getenv("APROVA_SMTP_HOST"), get("APROVA_SMTP_PORT", "587"), getenv("APROVA_SMTP_USER"), getenv("APROVA_SMTP_PASSWORD")
 	c.SMTPTLS = get("APROVA_SMTP_TLS", "starttls")
 	c.IMAPHost, c.IMAPPort, c.IMAPUser, c.IMAPPass = getenv("APROVA_IMAP_HOST"), get("APROVA_IMAP_PORT", "993"), getenv("APROVA_IMAP_USER"), getenv("APROVA_IMAP_PASSWORD")
+	c.TeamChat = getenv("APROVA_TEAM_CHAT")
 	c.Listen = get("APROVA_LISTEN", ":8080")
 	if c.Lang == "" {
 		c.Lang = "en"
