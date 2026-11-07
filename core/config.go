@@ -105,6 +105,12 @@ type ProfileMail struct {
 	RejectBody    string `yaml:"reject_body"`
 	InfoSubject   string `yaml:"info_subject"`
 	InfoBody      string `yaml:"info_body"`
+	// Welcome e-mails every new applicant right away, asking who they are and
+	// what they will post. It is tracked like a question: the reply lands in the
+	// request and a bounce flags it as "e-mail not delivered". Off by default.
+	Welcome        bool   `yaml:"welcome"`
+	WelcomeSubject string `yaml:"welcome_subject"`
+	WelcomeBody    string `yaml:"welcome_body"`
 }
 
 type ChecksConfig struct {

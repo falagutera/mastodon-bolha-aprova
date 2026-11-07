@@ -1,0 +1,21 @@
+{{template "head" .}}
+<h1>{{.T.rules_title}}</h1>
+<p class="lede">{{.T.rules_lede}}</p>
+<div class="rules">
+{{range .Rules}}<section class="rule">
+<h2>{{tf $.T "rules_profile" .Name}}</h2>
+<p class="meta">{{$.T.rules_services}}: {{join .Services}}</p>
+<ul>
+  <li>{{tf $.T "rules_who" (join .Approve) (join .EscalateTo)}}</li>
+  <li><strong>{{$.T.rules_auto_approve_h}}</strong> {{tf $.T "rules_auto_approve" .Quorum}}{{if .Checks}} {{$.T.rules_checks}} {{range $i, $c := .Checks}}{{if $i}}, {{end}}{{t $.T (printf "checked_%s" $c)}}{{end}}.{{end}}</li>
+  <li><strong>{{$.T.rules_auto_reject_h}}</strong> {{tf $.T "rules_auto_reject" .RejectQuorum}}</li>
+  <li><strong>{{$.T.rules_block_h}}</strong> {{$.T.rules_block}}</li>
+  <li><strong>{{$.T.rules_conflict_h}}</strong> {{if .Escalate}}{{tf $.T "rules_conflict_escalate" (join .EscalateTo)}}{{else}}{{$.T.rules_conflict_block}}{{end}}</li>
+  <li><strong>{{$.T.rules_ask_h}}</strong> {{tf $.T "rules_ask" .StaleDays}}{{if .Reset}} {{$.T.rules_reset}}{{end}}</li>
+  {{if .Welcome}}<li><strong>{{$.T.rules_welcome_h}}</strong> {{$.T.rules_welcome}}</li>{{end}}
+  <li><strong>{{$.T.rules_bounce_h}}</strong> {{if .AutoBounce}}{{$.T.rules_bounce_auto}}{{else}}{{$.T.rules_bounce_flag}}{{end}}</li>
+  <li><strong>{{$.T.rules_manual_h}}</strong> {{$.T.rules_manual}}</li>
+</ul>
+</section>
+{{end}}</div>
+{{template "foot" .}}

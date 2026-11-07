@@ -3,6 +3,11 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.9.0 — 2026-11-06
+
+- Welcome e-mail (`mail.welcome`, off by default): every new request gets an e-mail right away, in Portuguese and English, asking who the person is, what they do and what they will post. It shows as the first item of the discussion, the reply is attached to the request, and a bounce flags it "e-mail not delivered". Texts configurable with `welcome_subject` / `welcome_body`.
+- "How it works" page in the top menu: the automatic approval and rejection rules (three reviews), blocks, escalation and rounds, per profile, read from the running config.
+
 ## 0.8.3 — 2026-11-06
 
 - Release notes now come from `CHANGELOG.md` in the repo (shared [relnotes](https://gitlab.gutocarvalho.net/open/gcn/relnotes) package), and are also served as `/release-notes.json`.

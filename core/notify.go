@@ -166,8 +166,11 @@ func render(tmpl string, d mailData) (string, error) {
 func applicantMail(p *Profile, kind string, d mailData, to string) (Message, error) {
 	t := strs(p.Mail.Lang)
 	subject, body := p.Mail.RejectSubject, p.Mail.RejectBody
-	if kind == "info" {
+	switch kind {
+	case "info":
 		subject, body = p.Mail.InfoSubject, p.Mail.InfoBody
+	case "welcome":
+		subject, body = p.Mail.WelcomeSubject, p.Mail.WelcomeBody
 	}
 	if subject == "" {
 		subject = t["mail_"+kind+"_subject"]

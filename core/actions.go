@@ -583,17 +583,33 @@ func (s *Server) execute(ctx context.Context, tx pgx.Tx, svc *service, sess sess
 // askApplicant e-mails the question and remembers its Message-ID and the
 // applicant's address (hashed) so the answer can find its way back.
 func (s *Server) askApplicant(ctx context.Context, tx pgx.Tx, p *Profile, svc *service, st reqState, q module.Request, question string) error {
-	if s.mailer == nil || p.Mail.From == "" {
-		return errNoMail
-	}
-	if q.Email == "" {
-		return errors.New("no e-mail")
-	}
-	m, err := applicantMail(p, "info", mailData{Username: q.Username, Service: svc.cfg.Name, Question: question}, q.Email)
+	m, err := s.trackedMail(p, svc, q, "info", question)
 	if err != nil {
 		return err
 	}
+	return s.sendTracked(ctx, tx, svc, st, q, m)
+}
+
+// trackedMail builds an e-mail to the applicant that their reply (or its bounce)
+// can be matched back to.
+func (s *Server) trackedMail(p *Profile, svc *service, q module.Request, kind, question string) (Message, error) {
+	if s.mailer == nil || p.Mail.From == "" {
+		return Message{}, errNoMail
+	}
+	if q.Email == "" {
+		return Message{}, errors.New("no e-mail")
+	}
+	m, err := applicantMail(p, kind, mailData{Username: q.Username, Service: svc.cfg.Name, Question: question}, q.Email)
+	if err != nil {
+		return Message{}, err
+	}
 	m.MessageID = newMessageID(p.Mail.From)
+	return m, nil
+}
+
+// sendTracked records the message in asked (so readReplies attaches the answer
+// and readBounces flags a bounce) and sends it.
+func (s *Server) sendTracked(ctx context.Context, tx pgx.Tx, svc *service, st reqState, q module.Request, m Message) error {
 	if _, err := tx.Exec(ctx, `INSERT INTO asked (message_id, email_hash, service, request_id, username, round)
 		VALUES ($1, $2, $3, $4, $5, $6)`, m.MessageID, emailHash(q.Email), svc.id, q.ID, q.Username, st.Round); err != nil {
 		return err

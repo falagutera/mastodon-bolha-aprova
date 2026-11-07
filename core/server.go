@@ -138,6 +138,7 @@ func (s *Server) Run(ctx context.Context) {
 				s.sweep(ctx)
 				s.readReplies(ctx)
 				s.readBounces(ctx)
+				s.welcomeAll(ctx)
 			}
 		}
 	}()
@@ -163,6 +164,8 @@ func parseTemplates() (*template.Template, error) {
 		"passed": func(cs []module.Check) []module.Check {
 			return slices.DeleteFunc(slices.Clone(cs), func(c module.Check) bool { return !c.OK })
 		},
+		"join": func(xs []string) string { return strings.Join(xs, ", ") },
+		"tf":   func(m map[string]string, key string, args ...any) string { return fmt.Sprintf(m[key], args...) },
 		"t": func(m map[string]string, key string) string {
 			if v, ok := m[key]; ok {
 				return v
@@ -270,6 +273,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /queue", s.page(s.handleQueue))
 	mux.HandleFunc("GET /audit", s.page(s.handleAudit))
 	mux.HandleFunc("GET /release-notes", s.page(s.handleNotes))
+	mux.HandleFunc("GET /how-it-works", s.page(s.handleRules))
 	mux.HandleFunc("GET /release-notes.json", func(w http.ResponseWriter, r *http.Request) {
 		relnotes.JSONHandler("aprova", Version, Releases).ServeHTTP(w, r)
 	})
@@ -311,6 +315,7 @@ type viewData struct {
 	Modules  []string
 	TeamChat string
 	Releases template.HTML
+	Rules    []ruleView
 	Message  string
 	Profiles []profileView
 	Filter   string
@@ -490,6 +495,14 @@ func (s *Server) serviceQueue(ctx context.Context, sess session, svc *service, d
 			sv.Error = "unauthorized"
 		}
 		return sv
+	}
+	// auth: moderator services without a digest token can only be listed with a
+	// moderator's credentials, so new requests there are greeted from here.
+	if svc.profile.Mail.Welcome && svc.cfg.digestToken == "" && welcomeRun.TryLock() {
+		go func() {
+			defer welcomeRun.Unlock()
+			s.welcome(context.WithoutCancel(ctx), svc, reqs)
+		}()
 	}
 	ids := make([]string, len(reqs))
 	for i, q := range reqs {

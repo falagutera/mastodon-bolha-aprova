@@ -67,6 +67,14 @@ profiles:
       # reject_subject: "Your request to join {{.Service}}"
       # reject_body: |
       #   Hello, thank you for your interest in {{.Service}}. At the moment we can't accept your request.
+      # Welcome e-mail to every new request (off by default). Tracked like a question:
+      # the reply lands in the request, a bounce flags it "e-mail not delivered".
+      # Built-in text is in Portuguese and English. Fields: .Username .Service
+      # welcome: true
+      # welcome_subject: "We received your account request on {{.Service}}"
+      # welcome_body: |
+      #   Hello, we received your request for {{.Service}} ({{.Username}}). Tell us who you are,
+      #   what you do and what you plan to post: just reply to this e-mail.
     # Mattermost incoming webhook for the digest and escalations. Off when unset.
     # mattermost_webhook_env: APROVA_COMMUNITY_MATTERMOST
     # Direct messages from a bot account on the sign-in instance (token with

@@ -344,7 +344,8 @@ const (
 	kindRejectReason = "reject_reason"
 	kindApproveNote  = "approve_note"
 	kindSystem       = "system"
-	kindBounce       = "bounce" // the question e-mail came back undeliverable
+	kindBounce       = "bounce"  // the question e-mail came back undeliverable
+	kindWelcome      = "welcome" // the automatic first e-mail to a new applicant
 )
 
 func addComment(ctx context.Context, tx pgx.Tx, st reqState, authorID, authorAcct, kind, body string) error {
