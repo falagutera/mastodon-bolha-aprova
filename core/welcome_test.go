@@ -150,6 +150,11 @@ func TestRulesPage(t *testing.T) {
 	if code != 200 || !strings.Contains(body, "How approval works") || !strings.Contains(body, "Automatic rejection:") {
 		t.Fatalf("rules page %d:\n%s", code, body)
 	}
+	for _, want := range []string{"Rejection e-mail:", "Approval e-mail:", "send their own welcome e-mail"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rules page without %q", want)
+		}
+	}
 	if !strings.Contains(body, `href="/how-it-works"`) {
 		t.Error("no menu entry")
 	}

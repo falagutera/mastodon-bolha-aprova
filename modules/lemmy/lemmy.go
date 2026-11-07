@@ -2,10 +2,10 @@
 // "require application"), tested against 0.19.
 //
 // It needs the JWT of a dedicated admin account (Lemmy has no smaller role for
-// this). Lemmy e-mails the applicant itself both when approved and when
-// rejected, and can't be told not to, so the module declares it and aprova
-// skips its own rejection e-mail. It never sends a deny_reason: the applicant
-// gets Lemmy's generic text, never a moderator's note.
+// this). Lemmy e-mails the applicant when an application is denied, and can't
+// be told not to, so Reject doesn't deny: it purges the applicant, which sends
+// nothing, and aprova's own e-mail is the only message. Approving still gets
+// Lemmy's welcome e-mail.
 package lemmy
 
 import (
@@ -32,6 +32,7 @@ const (
 	maxPages      = 20
 	pageSize      = 50
 	pathBase      = "/api/v3/admin/registration_application"
+	pathPurge     = "/api/v3/admin/purge/person"
 )
 
 // The request id is the applicant's person id, so one call finds it.
@@ -59,8 +60,8 @@ func New(c module.Config) (module.Module, error) {
 }
 
 func (l *lemmy) Caps() module.Caps {
-	// Lemmy 0.19 e-mails the applicant on approve and on reject.
-	return module.Caps{SilentReject: false, SendsWelcome: true}
+	// Reject purges instead of denying, which e-mails nobody.
+	return module.Caps{SilentReject: true, SendsWelcome: true}
 }
 
 type application struct {
@@ -220,7 +221,6 @@ func (l *lemmy) decide(ctx context.Context, id string, approve bool) error {
 	if !a.pending() {
 		return module.ErrGone
 	}
-	// No deny_reason, ever: the applicant gets Lemmy's generic text.
 	body := struct {
 		ID      int64 `json:"id"`
 		Approve bool  `json:"approve"`
@@ -241,6 +241,23 @@ func (l *lemmy) Approve(ctx context.Context, _ module.Actor, id string) error {
 	return l.decide(ctx, id, true)
 }
 
+// Reject purges the applicant instead of denying: Lemmy 0.19 always e-mails a
+// denied applicant, while a purge sends nothing. It deletes the local user (and
+// with it the application) and keeps the name banned, so the same name can't
+// apply again. No reason is sent: the modlog is public.
 func (l *lemmy) Reject(ctx context.Context, _ module.Actor, id string) error {
-	return l.decide(ctx, id, false)
+	if !idPattern.MatchString(id) {
+		return module.ErrGone
+	}
+	a, err := l.get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !a.pending() {
+		return module.ErrGone
+	}
+	body := struct {
+		PersonID int64 `json:"person_id"`
+	}{a.Creator.ID}
+	return l.call(ctx, http.MethodPost, pathPurge, body, nil)
 }

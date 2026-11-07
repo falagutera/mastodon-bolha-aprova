@@ -45,8 +45,9 @@ type Caps struct {
 	// ModeratorAuth: the module can act with the signed-in moderator's token, so
 	// the app's own moderation log names the person.
 	ModeratorAuth bool
-	// SilentReject: rejecting sends nothing to the applicant, so aprova's own
-	// e-mail is the only message. When false, aprova doesn't send its e-mail.
+	// SilentReject: rejecting sends nothing to the applicant. aprova always
+	// sends its own rejection e-mail, so a module should reject silently where
+	// the app allows it; when false the person gets the app's message too.
 	SilentReject bool
 	// SendsWelcome: approving makes the app send its own welcome e-mail.
 	SendsWelcome bool

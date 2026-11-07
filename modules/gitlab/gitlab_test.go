@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ type fake struct {
 	users    map[string]*user
 	approved map[string]bool
 	rejected map[string]bool
+	notified map[string]bool // rejected through POST /reject, which e-mails the person
 	paths    []string
 }
 
@@ -33,13 +35,27 @@ func (f *fake) Remove(id string)        { f.mu.Lock(); delete(f.users, id); f.mu
 func (f *fake) Approved(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.approved[id] }
 func (f *fake) Rejected(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.rejected[id] }
 
-// GitLab e-mails the person on rejection, which the module declares in Caps.
-func (f *fake) Notified(id string) bool { return f.Rejected(id) }
+// GitLab's reject e-mails the person; deleting the user doesn't.
+func (f *fake) Notified(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.notified[id] }
 func (f *fake) Requests() int           { f.mu.Lock(); defer f.mu.Unlock(); return len(f.paths) }
 
 func newFake(t *testing.T) (*fake, *httptest.Server) {
-	f := &fake{users: map[string]*user{}, approved: map[string]bool{}, rejected: map[string]bool{}}
+	f := &fake{users: map[string]*user{}, approved: map[string]bool{}, rejected: map[string]bool{}, notified: map[string]bool{}}
 	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /api/v4/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if _, ok := f.users[id]; !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.URL.Query().Get("hard_delete") != "true" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		delete(f.users, id)
+		f.rejected[id] = true
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("GET /api/v4/users", func(w http.ResponseWriter, r *http.Request) {
 		list := []*user{{ID: 999, Username: "active", State: "active"}} // not pending: filtered out
 		for _, u := range f.users {
@@ -71,7 +87,7 @@ func newFake(t *testing.T) (*fake, *httptest.Server) {
 			u.State, f.approved[id] = "active", true
 		case "reject":
 			delete(f.users, id)
-			f.rejected[id] = true
+			f.rejected[id], f.notified[id] = true, true
 		}
 		fmt.Fprint(w, `{}`)
 	})
@@ -89,7 +105,7 @@ func newFake(t *testing.T) (*fake, *httptest.Server) {
 	return f, srv
 }
 
-var allowed = regexp.MustCompile(`^(GET /api/v4/users|GET /api/v4/users/[0-9]+|POST /api/v4/users/[0-9]+/(approve|reject))$`)
+var allowed = regexp.MustCompile(`^(GET /api/v4/users|GET /api/v4/users/[0-9]+|POST /api/v4/users/[0-9]+/approve|DELETE /api/v4/users/[0-9]+)$`)
 
 func TestContract(t *testing.T) {
 	var fakes []*fake
@@ -120,14 +136,28 @@ func TestSourceUsesOnlyTheUsersPath(t *testing.T) {
 	if got := regexp.MustCompile(`/api/v4/[a-z_/]*`).FindAllString(string(src), -1); len(got) != 1 || got[0] != "/api/v4/users" {
 		t.Errorf("API paths in the source: %v", got)
 	}
-	if m := regexp.MustCompile(`http\.Method(Put|Delete|Patch)`).FindString(string(src)); m != "" {
+	if m := regexp.MustCompile(`http\.Method(Put|Patch)`).FindString(string(src)); m != "" {
 		t.Errorf("uses %s", m)
 	}
 }
 
-func TestDoesNotClaimSilentReject(t *testing.T) {
+func TestRejectIsSilent(t *testing.T) {
 	m, _ := New(module.Config{URL: "https://gitlab.example", Auth: "token", Token: "x"})
-	if m.Caps().SilentReject {
-		t.Error("GitLab e-mails rejected users")
+	if !m.Caps().SilentReject {
+		t.Error("reject deletes the pending user, which e-mails nobody")
+	}
+}
+
+// Delete would remove an active user too: Reject must check first.
+func TestRejectLeavesActiveUsers(t *testing.T) {
+	f, srv := newFake(t)
+	m, _ := New(module.Config{URL: srv.URL, Auth: "token", Token: "admin-token", Client: srv.Client()})
+	f.Add(module.Request{ID: "61", Username: "ana", Email: "ana@example.org"})
+	f.users["61"].State = "active"
+	if err := m.Reject(t.Context(), module.Actor{}, "61"); !errors.Is(err, module.ErrGone) {
+		t.Errorf("reject active: %v", err)
+	}
+	if _, ok := f.users["61"]; !ok {
+		t.Error("deleted an active user")
 	}
 }

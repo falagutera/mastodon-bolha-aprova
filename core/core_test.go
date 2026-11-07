@@ -274,8 +274,9 @@ func TestServiceTokenAndGitLab(t *testing.T) {
 	if !w.gitlab.rejected[g] {
 		t.Fatal("gitlab not rejected")
 	}
-	if len(w.mail.sent) != 0 {
-		t.Error("GitLab already e-mails rejected users; aprova must not send another")
+	// The module deletes the pending user (silent); aprova's e-mail is the message.
+	if len(w.mail.sent) != 1 || w.mail.sent[0].To != "ivy@example.org" {
+		t.Errorf("rejection e-mail: %+v", w.mail.sent)
 	}
 }
 

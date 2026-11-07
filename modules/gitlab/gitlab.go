@@ -2,8 +2,13 @@
 // approval for new users.
 //
 // GitLab has no scope smaller than admin for this, so the token can do anything
-// on the instance. This module only ever calls the three paths in allowedPaths;
-// a test fails if the code uses any other.
+// on the instance. This module only ever lists and reads users, approves, and
+// deletes a user that is still pending approval; a test fails if it calls
+// anything else.
+//
+// GitLab's own reject e-mails the person and can't be told not to, so Reject
+// deletes the pending user instead (POST /reject is that same hard delete plus
+// the e-mail), and aprova's e-mail is the only message.
 package gitlab
 
 import (
@@ -54,10 +59,10 @@ func New(c module.Config) (module.Module, error) {
 }
 
 func (g *gitlab) Caps() module.Caps {
-	// GitLab e-mails the person both when approved and when rejected, and can't
-	// be told not to. aprova then skips its own rejection e-mail.
-	// The sign-up form asks for no reason (Reason is the profile bio).
-	return module.Caps{SilentReject: false, SendsWelcome: true, NoReason: true}
+	// Reject deletes the pending user, which e-mails nobody. Approving still
+	// gets GitLab's own e-mail. The sign-up form asks for no reason (Reason is
+	// the profile bio).
+	return module.Caps{SilentReject: true, SendsWelcome: true, NoReason: true}
 }
 
 type user struct {
@@ -145,7 +150,10 @@ func (g *gitlab) Get(ctx context.Context, _ module.Actor, id string) (module.Req
 	return u.request(), u.State == pendingState, nil
 }
 
-func (g *gitlab) act(ctx context.Context, a module.Actor, id, action string) error {
+// act checks the user is still pending, then calls method on the user's path
+// plus suffix. Delete would remove an active user too: the check right before
+// is what keeps it to pending ones.
+func (g *gitlab) act(ctx context.Context, a module.Actor, id, method, suffix string) error {
 	if !idPattern.MatchString(id) {
 		return module.ErrGone
 	}
@@ -154,7 +162,7 @@ func (g *gitlab) act(ctx context.Context, a module.Actor, id, action string) err
 	} else if !pending {
 		return module.ErrGone
 	}
-	resp, err := g.do(ctx, http.MethodPost, pathUsers+"/"+id+"/"+action)
+	resp, err := g.do(ctx, method, pathUsers+"/"+id+suffix)
 	if err != nil {
 		return err
 	}
@@ -164,9 +172,10 @@ func (g *gitlab) act(ctx context.Context, a module.Actor, id, action string) err
 }
 
 func (g *gitlab) Approve(ctx context.Context, a module.Actor, id string) error {
-	return g.act(ctx, a, id, "approve")
+	return g.act(ctx, a, id, http.MethodPost, "/approve")
 }
 
 func (g *gitlab) Reject(ctx context.Context, a module.Actor, id string) error {
-	return g.act(ctx, a, id, "reject")
+	// hard_delete, as GitLab's reject does: a pending user owns nothing.
+	return g.act(ctx, a, id, http.MethodDelete, "?hard_delete=true")
 }

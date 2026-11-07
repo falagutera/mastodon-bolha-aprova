@@ -70,6 +70,7 @@ profiles:
       reply_to: "signups@example.social"
       lang: en
       # Leave these out to use the built-in texts. Fields: .Username .Service .Question
+      # Rejection: always sent by aprova (the modules reject silently), never with the reason.
       # reject_subject: "Your request to join {{.Service}}"
       # reject_body: |
       #   Hello, thank you for your interest in {{.Service}}. At the moment we can't accept your request.

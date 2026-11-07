@@ -12,7 +12,7 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 - **Edits:** authors fix their own comments; the old text goes to the decision log.
 - **Escalation:** to the senior roles of a profile, who then decide alone.
 - **Notices:** a digest of pending sign-ups and escalations, by Mattermost webhook and/or direct messages from a bot account on the instance. Both off unless configured; each moderator can turn the bot's messages off in the panel. Messages never carry e-mails or reasons.
-- **Rejection:** with an internal reason. The applicant gets a standard, configurable message, never the reason. Modules reject without messaging the applicant, so aprova is the only voice.
+- **Rejection:** with an internal reason. The applicant always gets aprova's standard, configurable message (`reject_subject` / `reject_body`), never the reason. Modules reject without messaging the applicant wherever the app allows it, so aprova is the only voice.
 - **Profiles:** group services and say which roles approve, bulk reject and decide escalated requests.
 - **API first:** everything the pages do is in the JSON API, with an aprova token made on the "API token" page.
 - Decision log, Portuguese and English.
@@ -22,8 +22,8 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 | Module | App | Access |
 |---|---|---|
 | `mastodon` | Mastodon | The moderator's own token (admin scopes), or a service account's |
-| `gitlab` | GitLab with admin approval of new users | Admin token: GitLab has nothing smaller. The module only calls list, approve and reject, and a test fails if it calls anything else |
-| `lemmy` | Lemmy with "require application" (tested on 0.19) | JWT of a dedicated admin account. Lemmy e-mails the applicant on approve and reject and can't be told not to, so aprova skips its own rejection e-mail; no deny_reason is ever sent |
+| `gitlab` | GitLab with admin approval of new users | Admin token: GitLab has nothing smaller. GitLab's reject e-mails the person, so the module rejects by deleting the user (hard delete, what reject does underneath) right after checking it is still pending. It only calls list, read, approve and that delete, and a test fails if it calls anything else |
+| `lemmy` | Lemmy with "require application" (tested on 0.19) | JWT of a dedicated admin account. Lemmy always e-mails a denied applicant, so the module rejects by purging the applicant instead (no e-mail; the local user and its application go, the name stays banned). No reason is sent, the modlog is public. Approving still gets Lemmy's welcome |
 | `forgejo` | Forgejo with manual confirmation of new accounts (`REGISTER_MANUAL_CONFIRM`) | Site admin token (`read:admin`, `write:admin`, `read:user`). Approving activates the account; rejecting deletes it (purge), only if it is still inactive and never signed in. Forgejo sends no e-mail either way. A test fails if the module calls anything but these user paths |
 | `writefreely` | WriteFreely with the sign-up approval patch (`open/custom/writefreely`, `approval_required`) | The instance's `approval_api_key`, which only reaches `/api/admin/registrations`. Lists pending accounts with their e-mail and reason; approving lifts the hold; rejecting deletes the account, which WriteFreely does only while it is still pending. WriteFreely sends no e-mail either way |
 | `peertube` | PeerTube with registration approval (8.3+) | `token_env` holds `username:password` of a dedicated Moderator user (password grant; the token is kept in memory and refreshed). Reject is silent; accept lets PeerTube send its welcome |

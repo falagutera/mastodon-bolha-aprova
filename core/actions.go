@@ -546,9 +546,9 @@ func (s *Server) reject(ctx context.Context, tx pgx.Tx, sess session, svc *servi
 		return outcome{done: "gone"}, nil
 	}
 	out := outcome{done: "rejected"}
+	// Always aprova's own message: the modules reject without telling the
+	// person where the app allows it, so this is the one they get.
 	switch {
-	case !svc.mod.Caps().SilentReject:
-		// The app already told the person; a second e-mail would be confusing.
 	case s.mailer == nil || svc.profile.Mail.From == "":
 		out.done = "no_mail"
 	case q.Email != "":

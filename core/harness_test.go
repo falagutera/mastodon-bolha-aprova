@@ -208,6 +208,16 @@ func newGitlab(t *testing.T) *gitlabFake {
 		}
 		json.NewEncoder(w).Encode(u)
 	})
+	mux.HandleFunc("DELETE /api/v4/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if _, ok := g.users[id]; !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		delete(g.users, id)
+		g.rejected[id] = true
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("POST /api/v4/users/{id}/{action}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		u, ok := g.users[id]
@@ -318,6 +328,7 @@ profiles:
     approve: [Sábios, Fundador]
     bulk_reject: [Sábios, Fundador]
     escalate_to: [Sábios, Fundador]
+    mail: { from: "aprova@gcn.example" }
 checks:
   disposable_domains: [tinyhost.shop]
 `

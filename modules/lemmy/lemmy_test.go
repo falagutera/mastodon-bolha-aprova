@@ -33,6 +33,7 @@ type fake struct {
 	next       int64
 	approved   map[string]bool
 	rejected   map[string]bool
+	denied     map[string]bool // denied through Lemmy, which e-mails the applicant
 	calls      int
 	bodies     []string
 	smtpBroken bool
@@ -58,8 +59,8 @@ func (f *fake) Remove(id string) {
 func (f *fake) Approved(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.approved[id] }
 func (f *fake) Rejected(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.rejected[id] }
 
-// Lemmy e-mails the applicant on reject, which the module declares in Caps.
-func (f *fake) Notified(id string) bool { return f.Rejected(id) }
+// Lemmy e-mails a denied applicant; a purge sends nothing.
+func (f *fake) Notified(id string) bool { f.mu.Lock(); defer f.mu.Unlock(); return f.denied[id] }
 func (f *fake) Requests() int           { f.mu.Lock(); defer f.mu.Unlock(); return f.calls }
 
 func view(a *app) map[string]any {
@@ -80,8 +81,24 @@ func lemmyErr(w http.ResponseWriter, code string) {
 }
 
 func newFake(t *testing.T) (*fake, *httptest.Server) {
-	f := &fake{apps: map[string]*app{}, approved: map[string]bool{}, rejected: map[string]bool{}}
+	f := &fake{apps: map[string]*app{}, approved: map[string]bool{}, rejected: map[string]bool{}, denied: map[string]bool{}}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v3/admin/purge/person", func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		f.bodies = append(f.bodies, string(raw))
+		var in struct {
+			PersonID int64 `json:"person_id"`
+		}
+		json.Unmarshal(raw, &in)
+		pid := strconv.FormatInt(in.PersonID, 10)
+		if _, ok := f.apps[pid]; !ok {
+			lemmyErr(w, "couldnt_find_person")
+			return
+		}
+		delete(f.apps, pid) // the local user goes, and its application with it
+		f.rejected[pid] = true
+		json.NewEncoder(w).Encode(map[string]any{"success": true})
+	})
 	mux.HandleFunc("GET /api/v3/admin/registration_application/list", func(w http.ResponseWriter, r *http.Request) {
 		list := []map[string]any{}
 		if r.URL.Query().Get("page") == "1" {
@@ -118,7 +135,7 @@ func newFake(t *testing.T) (*fake, *httptest.Server) {
 			if in.Approve {
 				f.approved[pid] = true
 			} else {
-				f.rejected[pid] = true
+				f.rejected[pid], f.denied[pid] = true, true
 			}
 			if f.smtpBroken {
 				lemmyErr(w, "email_send_failed")
@@ -159,16 +176,24 @@ func TestContract(t *testing.T) {
 	})
 }
 
-func TestNeverSendsADenyReason(t *testing.T) {
+// Reject purges (silent) instead of denying (e-mails), and sends no reason:
+// the modlog is public.
+func TestRejectPurgesWithoutReason(t *testing.T) {
 	m, f := setup(t)
 	f.Add(module.Request{ID: "7", Username: "ana", Email: "ana@example.org"})
 	if err := m.Reject(t.Context(), module.Actor{}, "7"); err != nil {
 		t.Fatal(err)
 	}
+	if !f.Rejected("7") || f.Notified("7") {
+		t.Error("not purged, or denied")
+	}
 	for _, b := range f.bodies {
-		if strings.Contains(b, "deny_reason") {
+		if strings.Contains(b, "reason") {
 			t.Errorf("sent %s", b)
 		}
+	}
+	if _, pending, err := m.Get(t.Context(), module.Actor{}, "7"); pending || err != nil {
+		t.Errorf("after purge: pending=%v err=%v", pending, err)
 	}
 }
 
@@ -212,7 +237,7 @@ func TestWrongTokenIsUnauthorized(t *testing.T) {
 
 func TestCapsAndConfig(t *testing.T) {
 	m, _ := New(module.Config{URL: "https://forum.example", Auth: "token", Token: "x"})
-	if c := m.Caps(); c.SilentReject || !c.SendsWelcome || c.ModeratorAuth {
+	if c := m.Caps(); !c.SilentReject || !c.SendsWelcome || c.ModeratorAuth {
 		t.Errorf("caps: %+v", c)
 	}
 	for _, c := range []module.Config{

@@ -23,6 +23,9 @@ type ruleView struct {
 	Welcome      bool
 	AutoBounce   bool
 	StaleDays    int
+	RejectMail   bool
+	AppWelcome   []string // services whose app e-mails the person on approval
+	NoWelcome    []string // services where approval sends nothing
 }
 
 func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess session) {
@@ -31,12 +34,19 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess sessio
 		rv := ruleView{Name: p.Name, Approve: p.Approve, EscalateTo: p.EscalateTo, Quorum: p.Review.Quorum,
 			RejectQuorum: rejectQuorum, Escalate: p.Review.OnConflict == "escalate", Reset: *p.Review.ResetOnNewInfo,
 			Checks: p.Review.RequiredChecks, Welcome: p.Mail.Welcome && s.mailer != nil,
-			AutoBounce: s.cfg.AutoRejectOnBounce, StaleDays: s.cfg.Checks.InfoStaleDays}
+			AutoBounce: s.cfg.AutoRejectOnBounce, StaleDays: s.cfg.Checks.InfoStaleDays,
+			RejectMail: s.mailer != nil && p.Mail.From != ""}
 		if rv.Name == "" {
 			rv.Name = p.id
 		}
 		for _, sid := range p.Services {
-			rv.Services = append(rv.Services, s.services[sid].cfg.Name)
+			svc := s.services[sid]
+			rv.Services = append(rv.Services, svc.cfg.Name)
+			if svc.mod.Caps().SendsWelcome {
+				rv.AppWelcome = append(rv.AppWelcome, svc.cfg.Name)
+			} else {
+				rv.NoWelcome = append(rv.NoWelcome, svc.cfg.Name)
+			}
 		}
 		v.Rules = append(v.Rules, rv)
 	}

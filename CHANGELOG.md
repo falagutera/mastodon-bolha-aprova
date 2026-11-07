@@ -3,6 +3,12 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.10.0 — 2026-11-07
+
+- The rejection e-mail is always aprova's: every rejection (by a moderator or by the reject quorum) sends the standard message, configurable with `reject_subject` / `reject_body`, never the reason.
+- lemmy and gitlab now reject silently: Lemmy purges the applicant instead of denying (deny always e-mails), GitLab deletes the pending user instead of `POST /reject` (which e-mails). Both check the request is still pending right before.
+- The "How it works" page says what the applicant gets on rejection and on approval (which apps send their own welcome, which send nothing).
+
 ## 0.9.2 — 2026-11-07
 
 - `internal_routes`: requests for a public host (e.g. the sign-in instance) can go straight to a URL inside the cluster, with the public Host and `X-Forwarded-Proto: https`, instead of out and back in through the edge proxy and WAF — a burst of fake logins can no longer get the panel's egress IP banned there.
