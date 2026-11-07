@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -631,9 +633,11 @@ func TestBotSendsDirectMessagesAndEachPersonCanTurnThemOff(t *testing.T) {
 // The bot is refused when its configuration is unclear.
 func TestBotConfiguration(t *testing.T) {
 	for name, dm := range map[string]string{
-		"no token":      `{ token_env: T_NONE, recipients: [p1] }`,
-		"no recipients": `{ token_env: T_BOT }`,
-		"remote":        `{ token_env: T_BOT, recipients: ["p1@other.example"] }`,
+		"no token":               `{ token_env: T_NONE, recipients: [p1] }`,
+		"no recipients":          `{ token_env: T_BOT }`,
+		"remote":                 `{ token_env: T_BOT, recipients: ["p1@other.example"] }`,
+		"roles, no lookup token": `{ token_env: T_BOT, recipient_role_ids: [1] }`,
+		"bad hour":               `{ token_env: T_BOT, recipients: [p1], digest_hours: [24] }`,
 	} {
 		bad := strings.Replace(testConfig, `{ token_env: T_BOT, recipients: ["@p1", "P2"], escalation_recipients: [sabia] }`, dm, 1)
 		if _, err := ParseConfig([]byte(fmt.Sprintf(bad, "https://a.example", "https://b.example", "https://c.example")), testEnv(map[string]string{"T_HOOK": "https://hook.example/x"})); err == nil {
@@ -709,5 +713,67 @@ func TestNoApprovalMailWhenOff(t *testing.T) {
 		if m.To == "una@example.org" {
 			t.Errorf("sent %q with approve off", m.Subject)
 		}
+	}
+}
+
+// With role ids the team comes from the instance, and with digest_hours the
+// digest DM goes out once in each of those hours, only when something waits.
+func TestBotFindsTheTeamByRoleAndKeepsToTheHours(t *testing.T) {
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	var mu sync.Mutex
+	now := time.Date(2026, 11, 7, 8, 30, 0, 0, loc)
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	set := func(h, m int) { mu.Lock(); now = time.Date(2026, 11, 7, h, m, 0, 0, loc); mu.Unlock() }
+	w := newWorldWith(t, func(c string) string {
+		return strings.Replace(c, `{ token_env: T_BOT, recipients: ["@p1", "P2"], escalation_recipients: [sabia] }`,
+			`{ token_env: T_BOT, recipient_role_ids: [1], escalation_role_ids: [5], lookup_token_env: T_LOOKUP, digest_hours: [9, 18] }`, 1)
+	}, clock)
+	w.bolha.team = map[string]int{"p1": 1, "P2": 1, "sabia": 5, "fig": 4}
+	ctx := context.Background()
+	w.jorn.add(uniq(), "zed", "zed@example.org", "hi")
+	w.srv.Digest(ctx)
+	if n := len(w.bolha.sentDMs()); n != 0 {
+		t.Fatalf("%d DMs outside the hours", n)
+	}
+	set(9, 10)
+	w.srv.Digest(ctx)
+	dms := w.bolha.sentDMs()
+	var to []string
+	for _, d := range dms {
+		to = append(to, strings.Fields(d.Get("status"))[0])
+	}
+	sort.Strings(to)
+	if strings.Join(to, " ") != "@p1 @p2" {
+		t.Fatalf("digest went to %v", to)
+	}
+	// Another request in the same hour: no second round.
+	set(9, 40)
+	w.jorn.add(uniq(), "zoe", "zoe@example.org", "hi")
+	w.srv.Digest(ctx)
+	if n := len(w.bolha.sentDMs()); n != 2 {
+		t.Fatalf("%d DMs after a change in the same hour", n)
+	}
+	set(18, 5)
+	w.srv.Digest(ctx)
+	if n := len(w.bolha.sentDMs()); n != 4 {
+		t.Fatalf("%d DMs after 18h", n)
+	}
+	// A role holder sees the switch; escalations go to the escalation role.
+	if _, _, page := w.login("p1").do(http.MethodGet, "/queue", nil); !strings.Contains(page, "Turn off") {
+		t.Error("no switch for a role holder")
+	}
+	id := uniq()
+	w.bolha.add(id, "ash", "ash@example.org", "hello")
+	before := len(w.bolha.sentDMs())
+	w.login("p1").post("/r/bolha-us/"+id+"/escalate", url.Values{"body": {"unsure"}})
+	esc := w.bolha.sentDMs()[before:]
+	if len(esc) != 1 || !strings.HasPrefix(esc[0].Get("status"), "@sabia ") {
+		t.Errorf("escalation DM: %v", esc)
+	}
+	w.bolha.mu.Lock()
+	lookups := w.bolha.lookups
+	w.bolha.mu.Unlock()
+	if lookups != 3 { // one round of 3 pages (one account each), then the cache
+		t.Errorf("%d lookups", lookups)
 	}
 }

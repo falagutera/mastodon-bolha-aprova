@@ -15,6 +15,8 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -53,7 +55,9 @@ type instance struct {
 	revoked    []string
 	serviceTok string // when set, the admin API only takes this token
 	roles      map[string]string
-	dms        []url.Values // direct messages posted, with the token as "token"
+	dms        []url.Values   // direct messages posted, with the token as "token"
+	team       map[string]int // username -> role id, for the v2 admin accounts list
+	lookups    int
 	srv        *httptest.Server
 }
 
@@ -78,6 +82,34 @@ func newInstance(t *testing.T, serviceToken string) *instance {
 		f.Set("key", r.Header.Get("Idempotency-Key"))
 		in.dms = append(in.dms, f)
 		fmt.Fprint(w, `{"id":"1"}`)
+	})
+	// Admin accounts by role, one per page, to exercise the pagination.
+	mux.HandleFunc("GET /api/v2/admin/accounts", func(w http.ResponseWriter, r *http.Request) {
+		// The mux wrapper already holds in.mu.
+		if bearer(r) != "lookup-token" || r.URL.Query().Get("origin") != "local" || r.URL.Query().Get("status") != "active" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		in.lookups++
+		want := r.URL.Query()["role_ids[]"]
+		var names []string
+		for n, role := range in.team {
+			if contains(want, fmt.Sprint(role)) {
+				names = append(names, n)
+			}
+		}
+		sort.Strings(names)
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		if page < len(names)-1 {
+			q := r.URL.Query()
+			q.Set("page", fmt.Sprint(page+1))
+			w.Header().Set("Link", fmt.Sprintf(`<%s/api/v2/admin/accounts?%s>; rel="next"`, in.srv.URL, q.Encode()))
+		}
+		out := []map[string]any{}
+		if page < len(names) {
+			out = append(out, map[string]any{"username": names[page], "role": map[string]any{"id": fmt.Sprint(in.team[names[page]])}})
+		}
+		json.NewEncoder(w).Encode(out)
 	})
 	mux.HandleFunc("GET /api/v1/accounts/verify_credentials", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := people[bearer(r)]
@@ -346,17 +378,24 @@ func testEnv(extra map[string]string) func(string) string {
 	return func(k string) string { return base[k] }
 }
 
-func newWorld(t *testing.T) *world {
+func newWorld(t *testing.T) *world { t.Helper(); return newWorldWith(t, nil, nil) }
+
+// newWorldWith edits the test config and swaps the clock.
+func newWorldWith(t *testing.T, edit func(string) string, now func() time.Time) *world {
 	t.Helper()
 	if os.Getenv("APROVA_TEST_DB_HOST") == "" {
 		t.Skip("APROVA_TEST_DB_HOST not set")
 	}
 	w := &world{t: t, bolha: newInstance(t, ""), jorn: newInstance(t, "svc-jorn"), gitlab: newGitlab(t), mail: &mailCatcher{}, hook: newHook(t)}
-	cfg, err := ParseConfig([]byte(fmt.Sprintf(testConfig, w.bolha.srv.URL, w.jorn.srv.URL, w.gitlab.srv.URL)), testEnv(map[string]string{"T_HOOK": w.hook.srv.URL}))
+	conf := testConfig
+	if edit != nil {
+		conf = edit(conf)
+	}
+	cfg, err := ParseConfig([]byte(fmt.Sprintf(conf, w.bolha.srv.URL, w.jorn.srv.URL, w.gitlab.srv.URL)), testEnv(map[string]string{"T_HOOK": w.hook.srv.URL, "T_LOOKUP": "lookup-token"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	w.options = Options{Mailer: w.mail, MX: func(ctx context.Context, domain string) ([]*net.MX, error) {
+	w.options = Options{Mailer: w.mail, Now: now, MX: func(ctx context.Context, domain string) ([]*net.MX, error) {
 		if domain == "hidden-disposable.example" {
 			return []*net.MX{{Host: "mx.tinyhost.shop."}}, nil
 		}

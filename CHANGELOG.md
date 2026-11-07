@@ -3,6 +3,13 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.12.0 — 2026-11-07
+
+The bot's direct messages, ready for a real team.
+
+- `mastodon_dm.recipient_role_ids` / `escalation_role_ids`: every active local account holding one of those roles on the instance gets the digest / the escalations, besides any names in `recipients`. Looked up through the admin API with `lookup_token_env` (a token with `admin:read:accounts`, such as the `digest_token_env` one), at most every 30 minutes; a failed lookup keeps the last good list. Someone who joins the team gets the messages with no config change.
+- `mastodon_dm.digest_hours`: the digest DM goes out once in each of those hours (in `timezone`), and only when something is waiting, instead of every time the queue changes. Without it, nothing changes. Mattermost keeps posting on changes.
+
 ## 0.11.1 — 2026-11-07
 
 Hardening from the updated linters (gosec, semgrep).

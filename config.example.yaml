@@ -96,6 +96,12 @@ profiles:
     #   token_env: APROVA_BOT_TOKEN
     #   recipients: [ana, bia]              # the digest of pending sign-ups
     #   escalation_recipients: [carla]      # escalations
+    #   # Or by role on the instance (ids from the admin roles page), looked up with a
+    #   # token with admin:read:accounts; joins and leaves need no config change.
+    #   recipient_role_ids: [1, 5, 3]
+    #   escalation_role_ids: [5, 3]
+    #   lookup_token_env: APROVA_DIGEST_TOKEN
+    #   digest_hours: [9, 14, 20]           # digest DM at these hours only, if anything waits
   infra:
     name: Infrastructure
     services: [code]

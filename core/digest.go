@@ -22,7 +22,7 @@ import (
 func (s *Server) Digest(ctx context.Context) {
 	for _, pid := range sortedKeys(s.cfg.Profiles) {
 		p := s.cfg.Profiles[pid]
-		if p.mattermost == "" && (p.MastodonDM == nil || len(p.MastodonDM.Recipients) == 0) {
+		if p.mattermost == "" && p.MastodonDM == nil {
 			continue
 		}
 		if err := s.digestProfile(ctx, p); err != nil {
@@ -53,6 +53,16 @@ func (s *Server) digestProfile(ctx context.Context, p *Profile) error {
 			ids = append(ids, sid+"/"+q.ID)
 		}
 	}
+	msg := fmt.Sprintf(t["mm_digest"], total, p.Name, strings.Join(parts, " · "), s.cfg.BaseURL+"/queue")
+	hours := p.MastodonDM != nil && len(p.MastodonDM.DigestHours) > 0
+	if hours {
+		if err := s.digestAtHours(ctx, p, total, msg); err != nil {
+			return err
+		}
+		if p.mattermost == "" {
+			return nil
+		}
+	}
 	sort.Strings(ids)
 	sum := sha256.Sum256([]byte(strings.Join(ids, "\n")))
 	fp := hex.EncodeToString(sum[:])
@@ -73,15 +83,15 @@ func (s *Server) digestProfile(ctx context.Context, p *Profile) error {
 		return nil
 	}
 	if total > 0 {
-		msg := fmt.Sprintf(t["mm_digest"], total, p.Name, strings.Join(parts, " · "), s.cfg.BaseURL+"/queue")
 		pctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		err := s.mm.post(pctx, p.mattermost, msg)
 		cancel()
 		if err != nil {
 			return err
 		}
-		if p.MastodonDM != nil {
-			s.dm(ctx, p, p.MastodonDM.Recipients, msg, "digest\x00"+p.id+"\x00"+fp)
+		if p.MastodonDM != nil && !hours {
+			dg, _ := s.dmRecipients(ctx, p)
+			s.dm(ctx, p, dg, msg, "digest\x00"+p.id+"\x00"+fp)
 		}
 	}
 	if _, err := tx.Exec(ctx, `UPDATE digests SET fingerprint = $2, sent_at = now() WHERE profile = $1`, p.id, fp); err != nil {

@@ -54,6 +54,7 @@ type Server struct {
 	inbox    Inbox
 	bounce   Inbox // the sender mailbox, read for delivery-status notifications
 	mm       *mattermost
+	now      func() time.Time // for tests; nil means time.Now
 }
 
 // Options lets tests swap what reaches the outside.
@@ -65,6 +66,8 @@ type Options struct {
 	// Bounce replaces the sender mailbox read for bounces, for tests.
 	Bounce Inbox
 	MX     func(ctx context.Context, domain string) ([]*net.MX, error)
+	// Now replaces the clock, for tests.
+	Now func() time.Time
 }
 
 // New builds the server: it opens the database and every enabled service.
@@ -88,7 +91,7 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{cfg: cfg, db: db, tmpl: tmpl, client: client, services: map[string]*service{}, tokenBox: tokenBox, stateBox: stateBox,
-		checks: newChecker(cfg.Checks), mailer: opt.Mailer, mm: &mattermost{client: client}}
+		checks: newChecker(cfg.Checks), mailer: opt.Mailer, mm: &mattermost{client: client}, now: opt.Now}
 	if opt.MX != nil {
 		s.checks.lookupMX = opt.MX
 	}
@@ -465,7 +468,7 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request, sess sessio
 	}
 	acct := strings.ToLower(sess.Acct)
 	for _, p := range s.visibleProfiles(sess.Role) {
-		if d := p.MastodonDM; d != nil && (slices.Contains(d.Recipients, acct) || slices.Contains(d.EscalationRecipients, acct)) {
+		if dg, esc := s.dmRecipients(r.Context(), p); slices.Contains(dg, acct) || slices.Contains(esc, acct) {
 			v.DM = true
 		}
 	}

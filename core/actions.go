@@ -661,8 +661,9 @@ func (s *Server) after(ctx context.Context, sess session, svc *service, q module
 		if err := s.mm.post(ctx, svc.profile.mattermost, msg); err != nil {
 			log.Printf("mattermost: %v", err)
 		}
-		if d := svc.profile.MastodonDM; d != nil {
-			s.dm(ctx, svc.profile, d.EscalationRecipients, msg, "escalation\x00"+svc.id+"\x00"+q.ID+"\x00"+out.notify)
+		if svc.profile.MastodonDM != nil {
+			_, esc := s.dmRecipients(ctx, svc.profile)
+			s.dm(ctx, svc.profile, esc, msg, "escalation\x00"+svc.id+"\x00"+q.ID+"\x00"+out.notify)
 		}
 	}
 }

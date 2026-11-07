@@ -102,8 +102,18 @@ type MastodonDM struct {
 	TokenEnv             string   `yaml:"token_env"`
 	Recipients           []string `yaml:"recipients"`            // get the digest of pending sign-ups
 	EscalationRecipients []string `yaml:"escalation_recipients"` // get escalations
+	// Role ids on the instance: every active local account holding one gets the
+	// messages too, looked up with LookupTokenEnv (admin:read:accounts).
+	RecipientRoleIDs  []int  `yaml:"recipient_role_ids"`
+	EscalationRoleIDs []int  `yaml:"escalation_role_ids"`
+	LookupTokenEnv    string `yaml:"lookup_token_env"`
+	// Hours (in timezone) when the digest DM goes out, if anything is waiting.
+	// Unset: a DM every time the set of pending requests changes.
+	DigestHours []int `yaml:"digest_hours"`
 
-	token string
+	token       string
+	lookupToken string
+	roster      dmRoster
 }
 
 type ReviewConfig struct {
@@ -369,8 +379,19 @@ func (c *Config) validate(getenv func(string) string) error {
 					(*list)[i] = h
 				}
 			}
-			if len(d.Recipients)+len(d.EscalationRecipients) == 0 {
+			if len(d.RecipientRoleIDs)+len(d.EscalationRoleIDs) > 0 {
+				if d.LookupTokenEnv == "" || getenv(d.LookupTokenEnv) == "" {
+					return fmt.Errorf("config: profile %s: mastodon_dm role ids need lookup_token_env set to a non-empty variable", id)
+				}
+				d.lookupToken = getenv(d.LookupTokenEnv)
+			}
+			if len(d.Recipients)+len(d.EscalationRecipients)+len(d.RecipientRoleIDs)+len(d.EscalationRoleIDs) == 0 {
 				return fmt.Errorf("config: profile %s: mastodon_dm has no recipients", id)
+			}
+			for _, h := range d.DigestHours {
+				if h < 0 || h > 23 {
+					return fmt.Errorf("config: profile %s: mastodon_dm digest_hours must be 0-23, got %d", id, h)
+				}
 			}
 		}
 		if p.MattermostWebhookEnv != "" {
