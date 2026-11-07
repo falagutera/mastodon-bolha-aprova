@@ -176,6 +176,8 @@ func (g *gitlab) Approve(ctx context.Context, a module.Actor, id string) error {
 }
 
 func (g *gitlab) Reject(ctx context.Context, a module.Actor, id string) error {
-	// hard_delete, as GitLab's reject does: a pending user owns nothing.
-	return g.act(ctx, a, id, http.MethodDelete, "?hard_delete=true")
+	// No hard_delete (GitLab's reject uses it): a pending user owns nothing, and
+	// if someone approved it in GitLab between the check and the call, its
+	// contributions go to the ghost user instead of being destroyed.
+	return g.act(ctx, a, id, http.MethodDelete, "")
 }

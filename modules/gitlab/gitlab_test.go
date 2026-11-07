@@ -48,8 +48,8 @@ func newFake(t *testing.T) (*fake, *httptest.Server) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if r.URL.Query().Get("hard_delete") != "true" {
-			w.WriteHeader(http.StatusBadRequest)
+		if r.URL.Query().Get("hard_delete") != "" {
+			w.WriteHeader(http.StatusBadRequest) // must not destroy contributions
 			return
 		}
 		delete(f.users, id)

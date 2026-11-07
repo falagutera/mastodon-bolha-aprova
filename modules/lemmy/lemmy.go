@@ -72,8 +72,10 @@ type application struct {
 		Published lemmyTS `json:"published"`
 	} `json:"registration_application"`
 	CreatorLocalUser struct {
-		Email         *string `json:"email"`
-		EmailVerified *bool   `json:"email_verified"`
+		Email               *string `json:"email"`
+		EmailVerified       *bool   `json:"email_verified"`
+		AcceptedApplication bool    `json:"accepted_application"`
+		Admin               bool    `json:"admin"`
 	} `json:"creator_local_user"`
 	Creator struct {
 		ID   int64  `json:"id"`
@@ -253,7 +255,9 @@ func (l *lemmy) Reject(ctx context.Context, _ module.Actor, id string) error {
 	if err != nil {
 		return err
 	}
-	if !a.pending() {
+	// A purge also wipes posts and comments: only ever an account that was
+	// never let in. Checked on a fresh read, right before the call.
+	if !a.pending() || a.CreatorLocalUser.AcceptedApplication || a.CreatorLocalUser.Admin {
 		return module.ErrGone
 	}
 	body := struct {

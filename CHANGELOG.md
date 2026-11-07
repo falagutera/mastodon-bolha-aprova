@@ -6,7 +6,7 @@ published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 ## 0.10.0 — 2026-11-07
 
 - The rejection e-mail is always aprova's: every rejection (by a moderator or by the reject quorum) sends the standard message, configurable with `reject_subject` / `reject_body`, never the reason.
-- lemmy and gitlab now reject silently: Lemmy purges the applicant instead of denying (deny always e-mails), GitLab deletes the pending user instead of `POST /reject` (which e-mails). Both check the request is still pending right before.
+- lemmy and gitlab now reject silently: Lemmy purges the applicant instead of denying (deny always e-mails), GitLab deletes the pending user instead of `POST /reject` (which e-mails). Both check the request is still pending right before; Lemmy never purges an accepted or admin account, GitLab deletes without `hard_delete`.
 - The "How it works" page says what the applicant gets on rejection and on approval (which apps send their own welcome, which send nothing).
 
 ## 0.9.2 — 2026-11-07

@@ -24,6 +24,7 @@ type app struct {
 	answer   string
 	admin    *int64
 	verified bool
+	accepted bool
 	created  time.Time
 }
 
@@ -70,7 +71,7 @@ func view(a *app) map[string]any {
 	}
 	return map[string]any{
 		"registration_application": ra,
-		"creator_local_user":       map[string]any{"email": a.email, "email_verified": a.verified},
+		"creator_local_user":       map[string]any{"email": a.email, "email_verified": a.verified, "accepted_application": a.accepted},
 		"creator":                  map[string]any{"id": a.personID, "name": a.name},
 	}
 }
@@ -207,6 +208,17 @@ func TestDecidedDespiteMailError(t *testing.T) {
 	}
 	if !f.Approved("8") {
 		t.Error("not approved")
+	}
+}
+
+// A purge wipes content: never an account that was let in, even if its
+// application still reads as undecided.
+func TestRejectNeverPurgesAnAcceptedAccount(t *testing.T) {
+	m, f := setup(t)
+	f.Add(module.Request{ID: "12", Username: "dan", Email: "dan@example.org"})
+	f.apps["12"].accepted = true
+	if err := m.Reject(t.Context(), module.Actor{}, "12"); !errors.Is(err, module.ErrGone) || f.Rejected("12") {
+		t.Errorf("purged an accepted account: %v", err)
 	}
 }
 
