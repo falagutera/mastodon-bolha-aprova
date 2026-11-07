@@ -197,7 +197,18 @@ type outcome struct {
 	done      string // flash key
 	formError string // shown on the request page
 	notify    string // Mattermost text, sent after the commit
-	mailTo    string // send the rejection e-mail after the commit
+	mailTo    string // send the applicant an e-mail after the commit
+	mailKind  string // "reject" or "approve"
+}
+
+// approved is the outcome of an approval: the approval e-mail goes after the
+// commit when the profile turns it on.
+func (s *Server) approved(svc *service, q module.Request) outcome {
+	out := outcome{done: "approved"}
+	if svc.profile.Mail.Approve && s.mailer != nil && svc.profile.Mail.From != "" && q.Email != "" {
+		out.mailTo, out.mailKind = q.Email, "approve"
+	}
+	return out
 }
 
 func (s *Server) handleAct(kind string) authed {
@@ -416,7 +427,8 @@ func (s *Server) apply(ctx context.Context, tx pgx.Tx, kind string, sess session
 			if res == "gone" {
 				return outcome{done: "gone"}, nil
 			}
-			out.done = "approved"
+			a := s.approved(svc, q)
+			out.done, out.mailTo, out.mailKind = a.done, a.mailTo, a.mailKind
 		}
 		if verdict == verdictReject && mine && t.ReadyReject() {
 			// The vote that completes the reject quorum rejects, with this
@@ -459,7 +471,7 @@ func (s *Server) apply(ctx context.Context, tx pgx.Tx, kind string, sess session
 		if res == "gone" {
 			return outcome{done: "gone"}, nil
 		}
-		return outcome{done: "approved"}, nil
+		return s.approved(svc, q), nil
 
 	case "reject":
 		if !p.canDecide(sess.Role, st.Escalated) {
@@ -552,7 +564,7 @@ func (s *Server) reject(ctx context.Context, tx pgx.Tx, sess session, svc *servi
 	case s.mailer == nil || svc.profile.Mail.From == "":
 		out.done = "no_mail"
 	case q.Email != "":
-		out.mailTo = q.Email
+		out.mailTo, out.mailKind = q.Email, "reject"
 	}
 	return out, nil
 }
@@ -599,7 +611,7 @@ func (s *Server) trackedMail(p *Profile, svc *service, q module.Request, kind, q
 	if q.Email == "" {
 		return Message{}, errors.New("no e-mail")
 	}
-	m, err := applicantMail(p, kind, mailData{Username: q.Username, Service: svc.cfg.Name, Question: question}, q.Email)
+	m, err := applicantMail(p, kind, mailData{Username: q.Username, Service: svc.cfg.Name, URL: svc.cfg.publicURL(), Question: question}, q.Email)
 	if err != nil {
 		return Message{}, err
 	}
@@ -623,7 +635,7 @@ func (s *Server) sendTracked(ctx context.Context, tx pgx.Tx, svc *service, st re
 func (s *Server) after(ctx context.Context, sess session, svc *service, q module.Request, out *outcome) {
 	ctx = context.WithoutCancel(ctx)
 	if out.mailTo != "" {
-		m, err := applicantMail(svc.profile, "reject", mailData{Username: q.Username, Service: svc.cfg.Name}, out.mailTo)
+		m, err := applicantMail(svc.profile, out.mailKind, mailData{Username: q.Username, Service: svc.cfg.Name, URL: svc.cfg.publicURL()}, out.mailTo)
 		if err == nil {
 			mctx, cancel := context.WithTimeout(ctx, time.Minute)
 			err = s.mailer.Send(mctx, m)
@@ -631,11 +643,14 @@ func (s *Server) after(ctx context.Context, sess session, svc *service, q module
 		}
 		result := "ok"
 		if err != nil {
-			log.Printf("reject mail: %v", err)
-			result, out.done = "failed", "mail_failed"
+			log.Printf("%s mail: %v", out.mailKind, err)
+			result = "failed"
+			if out.mailKind == "reject" {
+				out.done = "mail_failed"
+			}
 		}
 		s.auditAlone(ctx, auditEntry{ActorID: sess.AccountID, ActorAcct: sess.Acct, Profile: svc.profile.id, Service: svc.id,
-			RequestID: q.ID, Username: q.Username, Action: "reject_mail", Result: result})
+			RequestID: q.ID, Username: q.Username, Action: out.mailKind + "_mail", Result: result})
 	}
 	if out.notify != "" {
 		t := strs(s.cfg.Lang)

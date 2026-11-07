@@ -59,6 +59,21 @@ func TestQuorumApprovesWithTheLastReviewersToken(t *testing.T) {
 	if detail != "quorum: @p1 + @p2" {
 		t.Errorf("audit: %q", detail)
 	}
+	// approve: true on the profile: the person gets aprova's approval e-mail.
+	var got []Message
+	for _, m := range w.mail.sent {
+		if m.To == "ana@example.org" {
+			got = append(got, m)
+		}
+	}
+	if len(got) != 1 || !strings.Contains(got[0].Subject, "was approved") || !strings.Contains(got[0].Body, "https://bolha.example") {
+		t.Errorf("approval e-mail: %+v", got)
+	}
+	var result string
+	w.srv.db.pool.QueryRow(context.Background(), `SELECT result FROM audit_log WHERE request_id = $1 AND action = 'approve_mail'`, id).Scan(&result)
+	if result != "ok" {
+		t.Errorf("approve_mail audit: %q", result)
+	}
 }
 
 func TestOneVotePerPerson(t *testing.T) {
@@ -274,9 +289,11 @@ func TestServiceTokenAndGitLab(t *testing.T) {
 	if !w.gitlab.rejected[g] {
 		t.Fatal("gitlab not rejected")
 	}
-	// The module deletes the pending user (silent); aprova's e-mail is the message.
-	if len(w.mail.sent) != 1 || w.mail.sent[0].To != "ivy@example.org" {
-		t.Errorf("rejection e-mail: %+v", w.mail.sent)
+	// jornalismo (approve: true) got the approval e-mail; the GitLab module
+	// deletes the pending user (silent), so aprova's e-mail is the message.
+	if len(w.mail.sent) != 2 || w.mail.sent[0].To != "hal@example.org" || !strings.Contains(w.mail.sent[0].Body, "was approved") ||
+		w.mail.sent[1].To != "ivy@example.org" || !strings.Contains(w.mail.sent[1].Subject, "Your request to join") {
+		t.Errorf("e-mails: %+v", w.mail.sent)
 	}
 }
 
@@ -674,6 +691,23 @@ func TestAuthorsFixTheirOwnComments(t *testing.T) {
 			if code, _ := sabia.post("/r/bolha-us/"+id+"/edit", url.Values{"comment": {fmt.Sprint(c.ID)}, "body": {"changed"}}); code != http.StatusForbidden {
 				t.Errorf("edited a question already sent: %d", code)
 			}
+		}
+	}
+}
+
+// A profile without approve: true sends nothing of aprova's own on approval.
+func TestNoApprovalMailWhenOff(t *testing.T) {
+	w := newWorld(t)
+	g := "8" + uniq()[:6]
+	w.gitlab.add(g, "una", "una@example.org")
+	sabia := w.login("sabia")
+	sabia.post("/r/gitlab-gcn/"+g+"/approve", url.Values{})
+	if !w.gitlab.approved[g] {
+		t.Fatal("not approved")
+	}
+	for _, m := range w.mail.sent {
+		if m.To == "una@example.org" {
+			t.Errorf("sent %q with approve off", m.Subject)
 		}
 	}
 }

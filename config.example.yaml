@@ -74,6 +74,12 @@ profiles:
       # reject_subject: "Your request to join {{.Service}}"
       # reject_body: |
       #   Hello, thank you for your interest in {{.Service}}. At the moment we can't accept your request.
+      # Approval e-mail (off by default), besides the app's own: where to sign in, rules,
+      # other services. Fields: .Username .Service .URL
+      # approve: true
+      # approve_subject: "Your account on {{.Service}} was approved"
+      # approve_body: |
+      #   Hello, your account on {{.Service}} ({{.Username}}) was approved. Sign in at {{.URL}}.
       # Welcome e-mail to every new request (off by default). Tracked like a question:
       # the reply lands in the request, a bounce flags it "e-mail not delivered".
       # Built-in text is in Portuguese and English. Fields: .Username .Service

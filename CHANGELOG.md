@@ -3,6 +3,11 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.11.0 — 2026-11-07
+
+- Approval e-mail (`mail.approve`, off by default): once a request is approved, by a moderator or by the quorum, aprova e-mails the person besides whatever the app sends — where to sign in, and whatever the profile wants to add (rules, code of conduct, the community's other services). Texts with `approve_subject` / `approve_body`; new field `{{.URL}}`, the service's address (`public_url` when `url` is internal, as for an agent; the config refuses an approval e-mail that would link to a non-https address). Logged as `approve_mail`; a failure doesn't undo the approval.
+- The "How it works" page says when the approval e-mail is on.
+
 ## 0.10.0 — 2026-11-07
 
 - The rejection e-mail is always aprova's: every rejection (by a moderator or by the reject quorum) sends the standard message, configurable with `reject_subject` / `reject_body`, never the reason.

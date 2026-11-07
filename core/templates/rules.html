@@ -15,7 +15,7 @@
   {{if .Welcome}}<li><strong>{{$.T.rules_welcome_h}}</strong> {{$.T.rules_welcome}}</li>{{end}}
   <li><strong>{{$.T.rules_bounce_h}}</strong> {{if .AutoBounce}}{{$.T.rules_bounce_auto}}{{else}}{{$.T.rules_bounce_flag}}{{end}}</li>
   {{if .RejectMail}}<li><strong>{{$.T.rules_reject_mail_h}}</strong> {{$.T.rules_reject_mail}}</li>{{end}}
-  <li><strong>{{$.T.rules_approve_mail_h}}</strong> {{$.T.rules_approve_mail}}{{if .AppWelcome}} {{tf $.T "rules_approve_app" (join .AppWelcome)}}{{end}}{{if .NoWelcome}} {{tf $.T "rules_approve_none" (join .NoWelcome)}}{{end}}</li>
+  <li><strong>{{$.T.rules_approve_mail_h}}</strong> {{if .ApproveMail}}{{$.T.rules_approve_ours}}{{else}}{{$.T.rules_approve_mail}}{{end}}{{if .AppWelcome}} {{tf $.T "rules_approve_app" (join .AppWelcome)}}{{end}}{{if .NoWelcome}} {{tf $.T "rules_approve_none" (join .NoWelcome)}}{{end}}</li>
   <li><strong>{{$.T.rules_manual_h}}</strong> {{$.T.rules_manual}}</li>
 </ul>
 </section>

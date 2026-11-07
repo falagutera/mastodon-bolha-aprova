@@ -310,8 +310,8 @@ base_url: https://aprova.example.org
 lang: en
 modules: [mastodon, gitlab]
 services:
-  bolha-us:   { module: mastodon, name: bolha.us, url: %[1]s, auth: moderator }
-  jornalismo: { module: mastodon, name: jornalismo.social, url: %[2]s, auth: token, token_env: T_JORN }
+  bolha-us:   { module: mastodon, name: bolha.us, url: %[1]s, public_url: https://bolha.example, auth: moderator }
+  jornalismo: { module: mastodon, name: jornalismo.social, url: %[2]s, public_url: https://jornalismo.example, auth: token, token_env: T_JORN }
   gitlab-gcn: { module: gitlab, name: gitlab, url: %[3]s, auth: token, token_env: T_GITLAB }
 profiles:
   bolha:
@@ -320,7 +320,7 @@ profiles:
     bulk_reject: [Sábios, Fundador]
     escalate_to: [Sábios, Fundador]
     review: { quorum: 2, required_checks: [bot_signal, disposable_email] }
-    mail: { from: "aprova@bolha.example", reply_to: "cadastro@bolha.example" }
+    mail: { from: "aprova@bolha.example", reply_to: "cadastro@bolha.example", approve: true }
     mattermost_webhook_env: T_HOOK
     mastodon_dm: { token_env: T_BOT, recipients: ["@p1", "P2"], escalation_recipients: [sabia] }
   gcn:

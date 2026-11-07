@@ -60,11 +60,20 @@ type ServiceConfig struct {
 	Module         string `yaml:"module"`
 	Name           string `yaml:"name"` // shown to moderators, e.g. bolha.us
 	URL            string `yaml:"url"`
+	PublicURL      string `yaml:"public_url"` // for e-mails, when url is internal (an agent); default url
 	Auth           string `yaml:"auth"` // moderator or token
 	TokenEnv       string `yaml:"token_env"`
 	DigestTokenEnv string `yaml:"digest_token_env"` // read-only token for the digest, with auth: moderator
 
 	token, digestToken string
+}
+
+// publicURL is the address people use: public_url, or url when that is public.
+func (c ServiceConfig) publicURL() string {
+	if c.PublicURL != "" {
+		return c.PublicURL
+	}
+	return c.URL
 }
 
 // Profile groups services and says who may do what. Roles are role names on
@@ -119,6 +128,11 @@ type ProfileMail struct {
 	Welcome        bool   `yaml:"welcome"`
 	WelcomeSubject string `yaml:"welcome_subject"`
 	WelcomeBody    string `yaml:"welcome_body"`
+	// Approve e-mails the person once approved, besides whatever the app sends:
+	// where to sign in, the rules and the rest of the community. Off by default.
+	Approve        bool   `yaml:"approve"`
+	ApproveSubject string `yaml:"approve_subject"`
+	ApproveBody    string `yaml:"approve_body"`
 }
 
 type ChecksConfig struct {
@@ -308,6 +322,10 @@ func (c *Config) validate(getenv func(string) string) error {
 				return fmt.Errorf("config: service %s is in profiles %s and %s; use one", s, other, id)
 			}
 			c.serviceProfile[s] = id
+			// The approval e-mail links to the service: never an internal address.
+			if sc := c.Services[s]; p.Mail.Approve && !strings.HasPrefix(sc.publicURL(), "https://") {
+				return fmt.Errorf("config: profile %s: approve e-mail on, but service %s has no https address; set public_url", id, s)
+			}
 		}
 		r := &p.Review
 		if r.Quorum == 0 {

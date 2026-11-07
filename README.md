@@ -13,6 +13,7 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 - **Escalation:** to the senior roles of a profile, who then decide alone.
 - **Notices:** a digest of pending sign-ups and escalations, by Mattermost webhook and/or direct messages from a bot account on the instance. Both off unless configured; each moderator can turn the bot's messages off in the panel. Messages never carry e-mails or reasons.
 - **Rejection:** with an internal reason. The applicant always gets aprova's standard, configurable message (`reject_subject` / `reject_body`), never the reason. Modules reject without messaging the applicant wherever the app allows it, so aprova is the only voice.
+- **Approval e-mail:** optional (`mail.approve`). Once approved, the person also gets aprova's own message, besides the app's: where to sign in and whatever the community wants to point to (rules, conduct, other services).
 - **Profiles:** group services and say which roles approve, bulk reject and decide escalated requests.
 - **API first:** everything the pages do is in the JSON API, with an aprova token made on the "API token" page.
 - Decision log, Portuguese and English.

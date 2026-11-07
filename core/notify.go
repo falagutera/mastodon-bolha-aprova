@@ -146,6 +146,7 @@ func (s *smtpMailer) Send(ctx context.Context, m Message) error {
 type mailData struct {
 	Username string
 	Service  string
+	URL      string // the service's address, for "sign in at"
 	Question string
 }
 
@@ -171,6 +172,8 @@ func applicantMail(p *Profile, kind string, d mailData, to string) (Message, err
 		subject, body = p.Mail.InfoSubject, p.Mail.InfoBody
 	case "welcome":
 		subject, body = p.Mail.WelcomeSubject, p.Mail.WelcomeBody
+	case "approve":
+		subject, body = p.Mail.ApproveSubject, p.Mail.ApproveBody
 	}
 	if subject == "" {
 		subject = t["mail_"+kind+"_subject"]

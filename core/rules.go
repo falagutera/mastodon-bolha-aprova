@@ -24,6 +24,7 @@ type ruleView struct {
 	AutoBounce   bool
 	StaleDays    int
 	RejectMail   bool
+	ApproveMail  bool
 	AppWelcome   []string // services whose app e-mails the person on approval
 	NoWelcome    []string // services where approval sends nothing
 }
@@ -35,7 +36,7 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess sessio
 			RejectQuorum: rejectQuorum, Escalate: p.Review.OnConflict == "escalate", Reset: *p.Review.ResetOnNewInfo,
 			Checks: p.Review.RequiredChecks, Welcome: p.Mail.Welcome && s.mailer != nil,
 			AutoBounce: s.cfg.AutoRejectOnBounce, StaleDays: s.cfg.Checks.InfoStaleDays,
-			RejectMail: s.mailer != nil && p.Mail.From != ""}
+			RejectMail: s.mailer != nil && p.Mail.From != "", ApproveMail: p.Mail.Approve && s.mailer != nil && p.Mail.From != ""}
 		if rv.Name == "" {
 			rv.Name = p.id
 		}
