@@ -3,6 +3,6 @@
 {{if .Audit}}<table class="audit">
 <thead><tr><th>{{.T.created}}</th><th>{{.T.who}}</th><th>{{.T.what}}</th><th>{{.T.where}}</th><th>{{.T.result}}</th></tr></thead>
 <tbody>
-{{range .Audit}}<tr><td>{{.At.Format "2006-01-02 15:04"}}</td><td>@{{.ActorAcct}}</td><td>{{.Action}}{{if .Detail}} · {{.Detail}}{{end}}</td><td><a href="/r/{{.Service}}/{{.RequestID}}">{{.Service}} · @{{.Username}}</a></td><td>{{.Result}}</td></tr>
+{{range .Audit}}<tr><td>{{when .At}}</td><td>@{{.ActorAcct}}</td><td>{{.Action}}{{if .Detail}} · {{.Detail}}{{end}}</td><td><a href="/r/{{.Service}}/{{.RequestID}}">{{.Service}} · @{{.Username}}</a></td><td>{{.Result}}</td></tr>
 {{end}}</tbody></table>{{else}}<p>{{.T.audit_empty}}</p>{{end}}
 {{template "foot" .}}

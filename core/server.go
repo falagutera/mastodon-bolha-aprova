@@ -82,7 +82,7 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmpl, err := parseTemplates()
+	tmpl, err := parseTemplates(cfg.loc)
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +156,13 @@ func (s *Server) Run(ctx context.Context) {
 	}()
 }
 
-func parseTemplates() (*template.Template, error) {
+func parseTemplates(loc *time.Location) (*template.Template, error) {
+	if loc == nil {
+		loc = time.UTC
+	}
 	return template.New("").Funcs(template.FuncMap{
+		"when": func(t time.Time) string { return t.In(loc).Format("2006-01-02 15:04") },
+		"zone": func() string { return loc.String() },
 		"failed": func(cs []module.Check) []module.Check {
 			return slices.DeleteFunc(slices.Clone(cs), func(c module.Check) bool { return c.OK })
 		},
@@ -532,7 +537,7 @@ func (s *Server) serviceQueue(ctx context.Context, sess session, svc *service, d
 	for _, q := range reqs {
 		st := states[q.ID]
 		c := counts[q.ID]
-		it := itemView{Service: svc.id, ID: q.ID, Username: q.Username, Email: q.Email, Reason: q.Reason, Created: q.Created.Format(date),
+		it := itemView{Service: svc.id, ID: q.ID, Username: q.Username, Email: q.Email, Reason: q.Reason, Created: q.Created.In(s.cfg.loc).Format(date),
 			Approvals: c[0], Rejects: c[1], Needed: svc.profile.Review.Quorum}
 		it.CanBulk = sv.CanBulk && svc.profile.canDecide(sess.Role, st.Escalated)
 		it.Undeliverable = st.Undeliverable

@@ -11,6 +11,8 @@ lang: en            # en or pt-BR
 # is flagged "e-mail not delivered" in the panel. Turn this on to also reject it
 # on its own. Off by default; never applies to auth: moderator services.
 # auto_reject_on_bounce: false
+# Timezone the panel shows times in (IANA name).
+# timezone: America/Sao_Paulo
 
 # Modules to load: one, some, or all. Nothing else runs, opens connections or
 # reads secrets. An empty list stops aprova at startup.

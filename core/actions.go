@@ -114,11 +114,11 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 	if rv.Pending {
 		rv.Username, rv.Email, rv.Reason = q.Username, q.Email, q.Reason
 		if !q.Created.IsZero() {
-			rv.Created = q.Created.Format(dateFormat)
+			rv.Created = q.Created.In(s.cfg.loc).Format(dateFormat)
 		}
 	}
 	if st.AwaitingSince != nil {
-		rv.Awaiting = st.AwaitingSince.Format(dateFormat)
+		rv.Awaiting = st.AwaitingSince.In(s.cfg.loc).Format(dateFormat)
 	}
 	if rv.Pending {
 		rv.Checks = s.checks.run(ctx, q, caps.NoReason)

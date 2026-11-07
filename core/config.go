@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -29,6 +30,9 @@ type Config struct {
 	// bounces (undeliverable). Off by default: a bounce only flags the request.
 	// Never applies to auth: moderator services (no system token to act with).
 	AutoRejectOnBounce bool `yaml:"auto_reject_on_bounce"`
+	// Timezone the panel shows times in (IANA name). Default America/Sao_Paulo.
+	Timezone string `yaml:"timezone"`
+	loc      *time.Location
 
 	// From the environment.
 	ClientID, ClientSecret, EncryptionKey  string
@@ -156,6 +160,14 @@ func ParseConfig(raw []byte, getenv func(string) string) (*Config, error) {
 	c.IMAPHost, c.IMAPPort, c.IMAPUser, c.IMAPPass = getenv("APROVA_IMAP_HOST"), get("APROVA_IMAP_PORT", "993"), getenv("APROVA_IMAP_USER"), getenv("APROVA_IMAP_PASSWORD")
 	c.TeamChat = getenv("APROVA_TEAM_CHAT")
 	c.Listen = get("APROVA_LISTEN", ":8080")
+	if c.Timezone == "" {
+		c.Timezone = "America/Sao_Paulo"
+	}
+	loc, err := time.LoadLocation(c.Timezone)
+	if err != nil {
+		return nil, fmt.Errorf("config: timezone %q: %w", c.Timezone, err)
+	}
+	c.loc = loc
 	if c.Lang == "" {
 		c.Lang = "en"
 	}

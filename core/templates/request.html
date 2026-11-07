@@ -23,7 +23,7 @@
 <h3 class="round-head">{{$.T.round}} {{.N}}{{if .Current}} · {{$.T.round_current}}{{else}} · {{$.T.round_closed}}{{end}}</h3>
 {{if and .Current (gt .N 1)}}<p class="note small">{{$.T.round_started}}</p>{{end}}{{end}}
 {{if .Comments}}<ol class="comments">
-{{range .Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else if eq .Kind "info_answer"}}{{$.T.applicant}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{.At.Format "2006-01-02 15:04"}}</span>{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
+{{range .Comments}}  <li class="kind-{{.Kind}}"><span class="who">{{if .Author}}@{{.Author}}{{else if eq .Kind "info_answer"}}{{$.T.applicant}}{{else}}{{t $.T "kind_system"}}{{end}}</span> {{t $.T (printf "kind_%s" .Kind)}} · <span class="when">{{when .At}}</span>{{if .EditedAt}} · <span class="when">{{$.T.edited}}</span>{{end}}
     <p>{{if eq .Kind "system"}}{{t $.T (printf "system_%s" .Body)}}{{else}}{{.Body}}{{end}}</p>
     {{if .Mine}}<details class="edit"><summary>{{$.T.edit}}</summary>
     <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/edit" class="compose">

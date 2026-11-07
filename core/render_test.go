@@ -13,7 +13,7 @@ import (
 // Every page renders in every language, with data in every branch. A template
 // error would otherwise only reach the log, after a 200.
 func TestEveryPageRenders(t *testing.T) {
-	tmpl, err := parseTemplates()
+	tmpl, err := parseTemplates(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestDiscussionSplitsRounds(t *testing.T) {
 		t.Fatalf("single round = %+v", one)
 	}
 
-	tmpl, err := parseTemplates()
+	tmpl, err := parseTemplates(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.9.1 — 2026-11-06
+
+- Times in the panel (requests, discussion, log) are shown in the configured `timezone` (default America/Sao_Paulo) instead of UTC; the footer says which zone.
+
 ## 0.9.0 — 2026-11-06
 
 - Welcome e-mail (`mail.welcome`, off by default): every new request gets an e-mail right away, in Portuguese and English, asking who the person is, what they do and what they will post. It shows as the first item of the discussion, the reply is attached to the request, and a bounce flags it "e-mail not delivered". Texts configurable with `welcome_subject` / `welcome_body`.
