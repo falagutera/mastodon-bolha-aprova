@@ -33,18 +33,27 @@ type script struct {
 	capsValue  wire.Caps
 }
 
-// writeScript puts the recipe where the interpreter can read it.
+// writeScript puts the recipe where the interpreter can read it: a fresh
+// private directory, the file read-only for the agent's own user, which is
+// the one the interpreter runs as. name is one of the recipe's fixed names.
 func writeScript(name string, body []byte) (string, error) {
-	dir := os.Getenv("APROVA_AGENT_TMP")
-	if dir == "" {
-		dir = os.TempDir()
+	base := os.Getenv("APROVA_AGENT_TMP")
+	if base == "" {
+		base = os.TempDir()
 	}
-	dir, err := os.MkdirTemp(dir, "aprova-agent-")
+	dir, err := os.MkdirTemp(base, "aprova-agent-")
 	if err != nil {
 		return "", err
 	}
-	p := filepath.Join(dir, name)
-	return p, os.WriteFile(p, body, 0o444)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	if err := root.WriteFile(name, body, 0o400); err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name), nil
 }
 
 type scriptOut struct {
@@ -60,7 +69,10 @@ func (s *script) run(ctx context.Context, args ...string) (scriptOut, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	argv := append(append(append([]string{}, s.interp[1:]...), s.path), args...)
-	cmd := exec.CommandContext(ctx, s.interp[0], argv...)
+	// The interpreter is the operator's (APROVA_AGENT_PHP / _PYTHON), the file is
+	// ours, and args are a fixed action plus an id that matched wire.ID; no shell.
+	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.CommandContext(ctx, s.interp[0], argv...) // #nosec G204 G702 -- operator-set interpreter, fixed recipe, validated id, no shell
 	cmd.Dir = s.dir
 	cmd.Env = append(os.Environ(), s.env...)
 	var stdout, stderr bytes.Buffer

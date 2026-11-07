@@ -18,6 +18,7 @@ import (
 	_ "time/tzdata"
 
 	"gitlab.gutocarvalho.net/open/aprova/core"
+	"gitlab.gutocarvalho.net/open/aprova/internal/healthcheck"
 	"gitlab.gutocarvalho.net/open/aprova/internal/relnotes"
 	_ "gitlab.gutocarvalho.net/open/aprova/modules/all"
 )
@@ -36,17 +37,16 @@ var changelog string
 var build = "dev"
 
 func main() {
-	healthcheck := flag.Bool("healthcheck", false, "probe the local server and exit")
+	probe := flag.Bool("healthcheck", false, "probe the local server and exit")
 	path := flag.String("config", os.Getenv("APROVA_CONFIG"), "configuration file")
 	flag.Parse()
 	listen := os.Getenv("APROVA_LISTEN")
 	if listen == "" {
 		listen = ":8080"
 	}
-	if *healthcheck {
-		resp, err := http.Get("http://127.0.0.1" + listen + "/healthz")
-		if err != nil || resp.StatusCode != http.StatusOK {
-			os.Exit(1)
+	if *probe {
+		if err := healthcheck.Probe(listen); err != nil {
+			log.Fatal(err)
 		}
 		return
 	}

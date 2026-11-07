@@ -3,6 +3,16 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.11.1 — 2026-11-07
+
+Hardening from the updated linters (gosec, semgrep).
+
+- The image runs as the distroless non-root user (`USER 65532:65532`).
+- `-healthcheck` (aprova and aprova-agent) takes only the port from the listen address and always asks 127.0.0.1, with a timeout; a listen address like `0.0.0.0:8080` now works too.
+- The agent writes its recipe file read-only for its own user (0400) inside its private temporary directory, through `os.Root`.
+- Form handlers read the form the `action` wrapper already parsed under its 64 KiB limit (`r.PostForm`), instead of `PostFormValue`.
+- The remaining gosec and semgrep warnings (operator-set config path, interpreter and `-install` target) are annotated with the reason.
+
 ## 0.11.0 — 2026-11-07
 
 - Approval e-mail (`mail.approve`, off by default): once a request is approved, by a moderator or by the quorum, aprova e-mails the person besides whatever the app sends — where to sign in, and whatever the profile wants to add (rules, code of conduct, the community's other services). Texts with `approve_subject` / `approve_body`; new field `{{.URL}}`, the service's address (`public_url` when `url` is internal, as for an agent; the config refuses an approval e-mail that would link to a non-https address). Logged as `approve_mail`; a failure doesn't undo the approval.

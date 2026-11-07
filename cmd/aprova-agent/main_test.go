@@ -142,8 +142,8 @@ esac`
 	if err := s.reject(ctx, "5"); err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Errorf("reject: %v", err)
 	}
-	if fi, _ := os.Stat(p); fi.Mode().Perm()&0o222 != 0 {
-		t.Errorf("recipe file is writable: %v", fi.Mode())
+	if fi, _ := os.Stat(p); fi.Mode().Perm() != 0o400 {
+		t.Errorf("recipe file mode %v, want read-only for its owner", fi.Mode())
 	}
 }
 

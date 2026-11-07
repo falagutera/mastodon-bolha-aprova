@@ -61,7 +61,7 @@ type ServiceConfig struct {
 	Name           string `yaml:"name"` // shown to moderators, e.g. bolha.us
 	URL            string `yaml:"url"`
 	PublicURL      string `yaml:"public_url"` // for e-mails, when url is internal (an agent); default url
-	Auth           string `yaml:"auth"` // moderator or token
+	Auth           string `yaml:"auth"`       // moderator or token
 	TokenEnv       string `yaml:"token_env"`
 	DigestTokenEnv string `yaml:"digest_token_env"` // read-only token for the digest, with auth: moderator
 
@@ -149,7 +149,7 @@ func env(key, fallback string) string {
 
 // LoadConfig reads the file and the environment, and refuses anything unclear.
 func LoadConfig(path string) (*Config, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- the operator's -config / APROVA_CONFIG file
 	if err != nil {
 		return nil, err
 	}

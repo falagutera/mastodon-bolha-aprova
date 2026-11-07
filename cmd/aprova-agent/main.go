@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"gitlab.gutocarvalho.net/open/aprova/internal/healthcheck"
 	"gitlab.gutocarvalho.net/open/aprova/wire"
 )
 
@@ -34,7 +35,7 @@ var build = "dev"
 
 func main() {
 	install := flag.String("install", "", "copy this binary to the given path and exit")
-	healthcheck := flag.Bool("healthcheck", false, "check the local agent and exit")
+	probe := flag.Bool("healthcheck", false, "check the local agent and exit")
 	flag.Parse()
 	if *install != "" {
 		if err := copySelf(*install); err != nil {
@@ -46,10 +47,9 @@ func main() {
 	if listen == "" {
 		listen = ":8090"
 	}
-	if *healthcheck {
-		resp, err := http.Get("http://127.0.0.1" + listen + "/healthz")
-		if err != nil || resp.StatusCode != http.StatusOK {
-			os.Exit(1)
+	if *probe {
+		if err := healthcheck.Probe(listen); err != nil {
+			log.Fatal(err)
 		}
 		return
 	}
@@ -83,12 +83,15 @@ func copySelf(dst string) error {
 	if err != nil {
 		return err
 	}
-	in, err := os.Open(self)
+	in, err := os.Open(self) // #nosec G304 -- our own executable, as os.Executable names it
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o555)
+	// dst is the operator's -install path. The app's container runs the copy
+	// under the app's user, not the one that copied it, so it must be
+	// executable by others; it is never writable.
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o555) // #nosec G302 G304 -- operator-chosen path; read+exec for the app's user, no write
 	if err != nil {
 		return err
 	}

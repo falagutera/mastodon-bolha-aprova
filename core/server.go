@@ -246,7 +246,7 @@ func (s *Server) action(next authed) http.HandlerFunc {
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-		if err := r.ParseForm(); err != nil || subtle.ConstantTimeCompare([]byte(sess.CSRF), []byte(r.PostFormValue("csrf"))) != 1 {
+		if err := r.ParseForm(); err != nil || subtle.ConstantTimeCompare([]byte(sess.CSRF), []byte(r.PostForm.Get("csrf"))) != 1 {
 			s.renderError(w, r, http.StatusForbidden, "expired")
 			return
 		}
@@ -481,7 +481,7 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request, sess sessio
 
 // handlePrefs turns the bot's direct messages off or on for the signed-in moderator.
 func (s *Server) handlePrefs(w http.ResponseWriter, r *http.Request, sess session) {
-	if err := s.db.setDMOff(r.Context(), sess.Acct, r.PostFormValue("dm") == "off"); err != nil {
+	if err := s.db.setDMOff(r.Context(), sess.Acct, r.PostForm.Get("dm") == "off"); err != nil {
 		log.Printf("prefs: %v", err)
 		s.renderError(w, r, http.StatusServiceUnavailable, "unavailable")
 		return

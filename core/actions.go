@@ -185,8 +185,10 @@ func (s *Server) moduleFailed(w http.ResponseWriter, r *http.Request, svc *servi
 	s.renderError(w, r, http.StatusBadGateway, "instance")
 }
 
+// text reads a form field. Every form handler is behind Server.action, which
+// has already parsed the body under a size limit, so it reads r.PostForm.
 func text(r *http.Request, field string) (string, bool) {
-	v := strings.TrimSpace(r.PostFormValue(field))
+	v := strings.TrimSpace(r.PostForm.Get(field))
 	return v, utf8.RuneCountInString(v) <= maxText && utf8.ValidString(v)
 }
 
@@ -224,7 +226,7 @@ func (s *Server) handleAct(kind string) authed {
 			http.Redirect(w, r, back+"?error=too_long", http.StatusSeeOther)
 			return
 		}
-		out, err := s.act(r.Context(), sess, svc, id, kind, body, r.PostFormValue("verdict"))
+		out, err := s.act(r.Context(), sess, svc, id, kind, body, r.PostForm.Get("verdict"))
 		switch {
 		case errors.Is(err, errForbidden):
 			s.renderError(w, r, http.StatusForbidden, "forbidden")
@@ -313,7 +315,7 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request, sess session
 		http.Redirect(w, r, back+"?error=too_long#discussion", http.StatusSeeOther)
 		return
 	}
-	formErr, err := s.editComment(r.Context(), sess, svc, id, r.PostFormValue("comment"), body)
+	formErr, err := s.editComment(r.Context(), sess, svc, id, r.PostForm.Get("comment"), body)
 	switch {
 	case errors.Is(err, errForbidden), errors.Is(err, errNotYours):
 		s.renderError(w, r, http.StatusForbidden, "forbidden")
@@ -686,7 +688,7 @@ func (s *Server) markGone(ctx context.Context, svc *service, id string) {
 }
 
 func (s *Server) handleBulkReject(w http.ResponseWriter, r *http.Request, sess session) {
-	svc, ok := s.services[r.PostFormValue("service")]
+	svc, ok := s.services[r.PostForm.Get("service")]
 	if !ok || !svc.profile.canBulkReject(sess.Role) {
 		s.renderError(w, r, http.StatusForbidden, "forbidden")
 		return
