@@ -73,6 +73,7 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 15 * time.Second}
 	}
+	client = routed(client, cfg.routes)
 	tokenBox, err := newBox(cfg.EncryptionKey, "session-token")
 	if err != nil {
 		return nil, err

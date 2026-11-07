@@ -33,6 +33,10 @@ type Config struct {
 	// Timezone the panel shows times in (IANA name). Default America/Sao_Paulo.
 	Timezone string `yaml:"timezone"`
 	loc      *time.Location
+	// InternalRoutes sends requests for a public host to a URL inside the
+	// cluster instead of through the edge, e.g. bolha.us: http://web.bolha-us.svc:3000.
+	InternalRoutes map[string]string `yaml:"internal_routes"`
+	routes         map[string]*url.URL
 
 	// From the environment.
 	ClientID, ClientSecret, EncryptionKey  string
@@ -168,6 +172,9 @@ func ParseConfig(raw []byte, getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("config: timezone %q: %w", c.Timezone, err)
 	}
 	c.loc = loc
+	if c.routes, err = parseRoutes(c.InternalRoutes); err != nil {
+		return nil, err
+	}
 	if c.Lang == "" {
 		c.Lang = "en"
 	}

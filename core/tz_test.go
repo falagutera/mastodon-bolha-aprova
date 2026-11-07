@@ -9,7 +9,7 @@ import (
 
 // 00:03 UTC on Nov 7 is still Nov 6 in Brasília: the panel shows local time.
 func TestTimesShownInConfiguredZone(t *testing.T) {
-	cfg, err := ParseConfig([]byte(fmt.Sprintf(testConfig, "https://a.example", "https://b.example", "https://c.example")), testEnv(map[string]string{"T_HOOK": "https://h.example"}))
+	cfg, err := ParseConfig([]byte(fmt.Sprintf(testConfig, "https://a.example", "https://b.example", "https://c.example")), testEnv(map[string]string{"T_HOOK": "https://h.example", "APROVA_DB_HOST": "db.invalid"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestTimesShownInConfiguredZone(t *testing.T) {
 	if got := b.String(); got != "2026-11-06 21:03 America/Sao_Paulo" {
 		t.Errorf("got %q", got)
 	}
-	if _, err := ParseConfig([]byte(fmt.Sprintf(testConfig, "https://a.example", "https://b.example", "https://c.example")+"timezone: Mars/Base\n"), testEnv(map[string]string{"T_HOOK": "https://h.example"})); err == nil {
+	if _, err := ParseConfig([]byte(fmt.Sprintf(testConfig, "https://a.example", "https://b.example", "https://c.example")+"timezone: Mars/Base\n"), testEnv(map[string]string{"T_HOOK": "https://h.example", "APROVA_DB_HOST": "db.invalid"})); err == nil {
 		t.Error("bad timezone accepted")
 	}
 }

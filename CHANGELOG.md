@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.9.2 — 2026-11-07
+
+- `internal_routes`: requests for a public host (e.g. the sign-in instance) can go straight to a URL inside the cluster, with the public Host and `X-Forwarded-Proto: https`, instead of out and back in through the edge proxy and WAF — a burst of fake logins can no longer get the panel's egress IP banned there.
+
 ## 0.9.1 — 2026-11-06
 
 - Times in the panel (requests, discussion, log) are shown in the configured `timezone` (default America/Sao_Paulo) instead of UTC; the footer says which zone.

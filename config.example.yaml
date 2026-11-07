@@ -13,6 +13,10 @@ lang: en            # en or pt-BR
 # auto_reject_on_bounce: false
 # Timezone the panel shows times in (IANA name).
 # timezone: America/Sao_Paulo
+# Reach a public host through a URL inside the cluster instead of the edge
+# (login, API, DMs). The app sees its public Host and X-Forwarded-Proto: https.
+# internal_routes:
+#   example.social: http://web.example.svc.cluster.local:3000
 
 # Modules to load: one, some, or all. Nothing else runs, opens connections or
 # reads secrets. An empty list stops aprova at startup.
