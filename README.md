@@ -169,3 +169,7 @@ Tests that need PostgreSQL skip themselves unless `APROVA_TEST_DB_HOST` is set; 
 ## License
 
 AGPL-3.0, see `LICENSE`.
+
+## Bot account
+
+The app's account on bolha.us, @aprova, is marked as a bot and uses [`docs/bot-avatar.png`](docs/bot-avatar.png) as its avatar, in the style of the other bolha.us bots.
