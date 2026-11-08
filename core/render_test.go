@@ -3,6 +3,10 @@ package core
 import (
 	"bytes"
 	"html/template"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -112,6 +116,44 @@ func TestDiscussionSplitsRounds(t *testing.T) {
 		for _, want := range []string{v.T["round_closed"], v.T["round_current"], v.T["round_started"], v.T["round_empty"]} {
 			if !strings.Contains(out, template.HTMLEscapeString(want)) {
 				t.Errorf("%s: missing %q", lang, want)
+			}
+		}
+	}
+}
+
+// Every check name (core and modules) and every bot-signal detail has its
+// texts in every language: a missing key renders the raw id and nothing fails.
+func TestEveryCheckAndDetailHasTexts(t *testing.T) {
+	names := slices.Clone(coreChecks)
+	mods, _ := filepath.Glob("../modules/*/*.go")
+	for _, f := range mods {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		src, _ := os.ReadFile(f)
+		for _, m := range regexp.MustCompile(`Check\{\{?Name: "([a-z_]+)"`).FindAllSubmatch(src, -1) {
+			names = append(names, string(m[1]))
+		}
+	}
+	src, err := os.ReadFile("checks.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	details := regexp.MustCompile(`return true, "([a-z_]+)"`).FindAllSubmatch(src, -1)
+	if len(names) <= len(coreChecks) || len(details) == 0 {
+		t.Fatalf("found no module checks or no details: %v %d", names, len(details))
+	}
+	var keys []string
+	for _, n := range names {
+		keys = append(keys, "check_"+n, "checked_"+n)
+	}
+	for _, d := range details {
+		keys = append(keys, "detail_"+string(d[1]))
+	}
+	for _, lang := range supportedLangs {
+		for _, k := range keys {
+			if strs(lang)[k] == "" {
+				t.Errorf("%s lacks %s", lang, k)
 			}
 		}
 	}

@@ -17,9 +17,13 @@ Two Go binaries, no JavaScript at all, PostgreSQL through pgx (no ORM):
 ```sh
 gofmt -l .                # must print nothing
 go vet ./...
-go test -p 1 ./...        # without APROVA_TEST_DB_HOST the core's database tests skip themselves
+go test -count=1 -p 1 ./...
 for t in agent forgejo gitlab lemmy mastodon peertube writefreely; do go build -tags no_$t ./... || echo "no_$t breaks"; done
 ```
+
+Without `APROVA_TEST_DB_HOST`, 33 core tests **skip** — most of the policy and privacy tests (rules 1, 3, 5–8
+below). A change under `core/` is not tested until the database block runs. The build loop is the same list
+as the one in `.gitlab-ci.yml`; keep them equal.
 
 With a database (what CI runs). The core tests **empty aprova's tables** (`DELETE FROM`) at the start of
 each test, so use a port of your own, chain with `&&`, and never point them at a shared Postgres: they
@@ -32,9 +36,9 @@ docker run -d --name aprova-pg-$P -p $P:5432 -e POSTGRES_PASSWORD=pg postgres:17
   until docker exec aprova-pg-$P pg_isready -h 127.0.0.1 -U postgres -q; do sleep 1; done &&
   docker exec aprova-pg-$P psql -q -U postgres -c "CREATE ROLE aprova LOGIN PASSWORD 'aprova'" -c "CREATE DATABASE aprova_test" &&
   docker exec -i aprova-pg-$P psql -q -U postgres -d aprova_test -v ON_ERROR_STOP=1 -f - < schema.sql &&
-  APROVA_TEST_DB_HOST=127.0.0.1 APROVA_TEST_DB_PORT=$P go test -p 1 ./...
+  APROVA_TEST_DB_HOST=127.0.0.1 APROVA_TEST_DB_PORT=$P go test -count=1 -p 1 ./...
 
-docker rm -f aprova-pg-$P
+docker rm -f aprova-pg-$P   # always, even when a step above failed
 ```
 
 Test variables: `APROVA_TEST_DB_HOST`, `APROVA_TEST_DB_PORT`, `APROVA_TEST_DB_NAME` (default `aprova_test`).
@@ -104,7 +108,8 @@ A change that weakens one of these is a bug, even if no test catches it yet.
    `core/assets/aprova.css` (`TestNoScriptOrInlineStyle`). Templates are `html/template`; user text is
    escaped (`TestEveryPageRenders`).
 10. **Both languages.** Every key exists in `en` and `pt-BR` (`TestTranslationsHaveTheSameKeys`); new
-    flash keys go in `flashes` and need `flash_<key>`.
+    flash keys go in `flashes` and need `flash_<key>`. A key missing from a language renders the raw id;
+    for checks and bot-signal details `TestEveryCheckAndDetailHasTexts` catches that, elsewhere nothing does.
 11. **Bounded work.** Outbound HTTP uses the core's client (`New` in `server.go`, 15 s timeout); responses go
     through `io.LimitReader`; forms are capped at 64 KiB, comments at `maxText`. The agent takes no code from the
     network. And every module can be left out with `-tags no_<name>` (the loop in Commands).
@@ -113,7 +118,8 @@ A change that weakens one of these is a bug, even if no test catches it yet.
 
 0. **Check it is not there already**: `ls modules/`, the README's module table, and the agent recipes
    (`newRecipe` in `cmd/aprova-agent/main.go`). An app with no approval API is a **recipe**, not a module:
-   add `recipes/<app>.*`, a `new<App>` in `recipes.go`, its case in `newRecipe`, and the name in `TestEveryRecipeLoads`.
+   add `recipes/<app>.*`, a `new<App>` in `recipes.go`, its case in `newRecipe` **and** its name in the two
+   "(known: …)" error strings there, the name in `TestEveryRecipeLoads`, and the README's recipe list and table.
 1. `modules/<name>/<name>.go`: `func init() { module.Register("<name>", New) }`; `New` refuses non-https
    URLs and the wrong `auth`; an `idPattern` checked first in `Get`, `Approve`, `Reject`; a `status()`
    mapping 401/403 to `ErrUnauthorized` and 404 to `ErrGone`; the `Config.Client` the core passes (it carries
@@ -121,15 +127,27 @@ A change that weakens one of these is a bug, even if no test catches it yet.
 2. `modules/<name>/<name>_test.go`: an `httptest` fake implementing `moduletest.Fake`, then `TestContract`
    calling `moduletest.Run`; plus a source/call-log test that fails on any API path you didn't mean to use,
    `TestConfig`, a wrong-token test, and the app's own corner cases.
-3. `modules/all/<name>.go` with `//go:build !no_<name>`; add `no_<name>` to the build line in
-   `.gitlab-ci.yml` and to the loop in Commands.
+3. `modules/all/<name>.go` with `//go:build !no_<name>`; add the name to the `for t in …` loop, both in
+   Commands and in `.gitlab-ci.yml`.
 4. README: a row in the module table (access needed, what approve/reject do, what the app e-mails).
 5. `gofmt`, `go vet`, the tests with a database, the `no_<name>` builds; a VERSION bump and changelog entry.
 
+### Adding a check or bot signal
+
+A new bot signal is one more `return true, "<x>"` in `botSignal` (`core/checks.go`) plus `detail_<x>` in both
+languages, and a case for it in `core/checks_test.go` (no test covers `botSignal` directly yet).
+A new check `Name` needs `check_<n>` (shown when it fails) and
+`checked_<n>` (the passed list and the "How it works" page) in both languages; `check_ok_*` keys exist but no
+template uses them. Only core checks (`coreChecks`) can go in a profile's `review.required_checks`; a module's
+own checks (`email_verified`) are shown, never required. `TestEveryCheckAndDetailHasTexts` finds names and
+details from the source and fails on a missing text.
+
 ## Releasing
 
-- `VERSION` holds `X.Y.Z`; CI adds the pipeline number (`X.Y.Z-BUILD`, `main.build`). Bump it for user-visible changes.
-- Every version needs its `CHANGELOG.md` entry (`TestChangelogHasVersion`); it is the panel's release notes page.
+- `VERSION` holds `X.Y.Z`; CI adds the pipeline number (`X.Y.Z-BUILD`, `main.build`). Bump it for user-visible
+  changes; docs-, test- or CI-only changes don't bump it.
+- `TestChangelogHasVersion` fails when `VERSION` has no `## X.Y.Z` entry in `CHANGELOG.md` (the panel's release
+  notes page). Changes not released yet may wait under `## Unreleased`, which `internal/relnotes` skips.
 - A change to `schema.sql` says so in the changelog: installs apply it as the database owner.
 - Code, comments, commits and the README in English. Keep commits small with a message that says why.
 

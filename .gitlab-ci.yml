@@ -29,7 +29,8 @@ test:
     - go vet ./...
     - go test -p 1 ./...
     # Each module can be left out of a build.
-    - go build -tags no_gitlab ./... && go build -tags no_mastodon ./... && go build -tags no_agent ./... && go build -tags no_peertube ./... && go build -tags no_forgejo ./... && go build -tags no_lemmy ./...
+    # Same loop as AGENTS.md; a new module adds its name to both.
+    - for t in agent forgejo gitlab lemmy mastodon peertube writefreely; do go build -tags no_$t ./... || exit 1; done
     - go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
     - "$(go env GOPATH)/bin/govulncheck ./..."
 
