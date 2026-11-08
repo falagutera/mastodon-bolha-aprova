@@ -75,3 +75,5 @@ fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; 
 .relnotes h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: .8rem 0 .2rem; }
 .relnotes .summary { margin: .2rem 0 .4rem; }
 .rules .rule { margin: 1.4rem 0; } .rules h2 { margin-bottom: .3rem; } .rules li { margin: .45rem 0; } .rules .meta { opacity: .8; }
+.prefs { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1rem 0; }
+.prefs .note { display: block; margin: 0; }

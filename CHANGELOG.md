@@ -3,6 +3,11 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.12.1 — 2026-11-07
+
+- Queue page: the bot DM notice and its button sit on their own row, instead of overlapping the flash message and the filters.
+- Stylesheet links carry the version (`?v=`), so a new release isn't hidden behind a cached stylesheet.
+
 ## 0.12.0 — 2026-11-07
 
 The bot's direct messages, ready for a real team.
