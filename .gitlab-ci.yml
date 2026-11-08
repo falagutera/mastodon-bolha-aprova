@@ -18,11 +18,12 @@ test:
     PGPASSWORD: admin
     APROVA_TEST_DB_HOST: postgres
     APROVA_TEST_DB_PORT: "5432"
+    APROVA_TEST_DB_NAME: aprova_test
   before_script:
     - apk add --no-cache postgresql17-client
     - until pg_isready -h postgres -U postgres; do sleep 1; done
-    - psql -h postgres -U postgres -c "CREATE ROLE aprova LOGIN PASSWORD 'aprova'" -c "CREATE DATABASE aprova"
-    - psql -h postgres -U postgres -d aprova -v ON_ERROR_STOP=1 -f schema.sql
+    - psql -h postgres -U postgres -c "CREATE ROLE aprova LOGIN PASSWORD 'aprova'" -c "CREATE DATABASE aprova_test"
+    - psql -h postgres -U postgres -d aprova_test -v ON_ERROR_STOP=1 -f schema.sql
   script:
     - test -z "$(gofmt -l .)"
     - go vet ./...

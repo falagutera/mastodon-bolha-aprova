@@ -1,7 +1,10 @@
 package core
 
 import (
+	"io/fs"
 	"net/http"
+	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -57,5 +60,27 @@ func TestParseInboundDropsNUL(t *testing.T) {
 	}
 	if len(in.References) != 1 || in.References[0] != "ab@ex" {
 		t.Errorf("References = %v", in.References)
+	}
+}
+
+// The pages run no script and no inline style: the CSP allows neither, and
+// the templates must not need them (a template that did would break silently).
+func TestNoScriptOrInlineStyle(t *testing.T) {
+	rec := httptest.NewRecorder()
+	securityHeaders(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	csp := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "default-src 'none'") || strings.Contains(csp, "script-src") || strings.Contains(csp, "unsafe-") {
+		t.Errorf("CSP %q", csp)
+	}
+	pages, err := fs.Glob(templateFS, "templates/*.html")
+	if err != nil || len(pages) == 0 {
+		t.Fatal(pages, err)
+	}
+	bad := regexp.MustCompile(`(?i)<script|<style|\sstyle=|\son[a-z]+=|javascript:`)
+	for _, p := range pages {
+		raw, _ := fs.ReadFile(templateFS, p)
+		if m := bad.Find(raw); m != nil {
+			t.Errorf("%s: %q", p, m)
+		}
 	}
 }

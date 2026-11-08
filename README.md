@@ -164,7 +164,9 @@ Recipes:
 go test ./...
 ```
 
-Tests that need PostgreSQL skip themselves unless `APROVA_TEST_DB_HOST` is set; see `.gitlab-ci.yml`.
+Tests that need PostgreSQL skip themselves unless `APROVA_TEST_DB_HOST` is set; see `.gitlab-ci.yml`. They empty aprova's tables, so they only run against a database whose name ends in `_test` (`APROVA_TEST_DB_NAME`, default `aprova_test`).
+
+[`AGENTS.md`](AGENTS.md) is the guide for changing aprova, by hand or with a coding agent: the commands (including a throwaway PostgreSQL in Docker), a map of the code, the rules a change must keep (no data about accounts that aren't pending, ids checked before they reach an app, least privilege on each app, aprova as the only voice on rejection, both languages, no script) with the tests that guard each one, and how to add a module.
 
 ## License
 

@@ -369,13 +369,30 @@ func testEnv(extra map[string]string) func(string) string {
 	base := map[string]string{
 		"APROVA_CLIENT_ID": "cid", "APROVA_CLIENT_SECRET": "csecret", "APROVA_ENCRYPTION_KEY": strings.Repeat("k", 32),
 		"APROVA_DB_HOST": os.Getenv("APROVA_TEST_DB_HOST"), "APROVA_DB_PORT": os.Getenv("APROVA_TEST_DB_PORT"),
-		"APROVA_DB_PASSWORD": "aprova", "APROVA_DB_SSLMODE": "disable",
+		"APROVA_DB_NAME": testDBName(), "APROVA_DB_PASSWORD": "aprova", "APROVA_DB_SSLMODE": "disable",
 		"T_JORN": "svc-jorn", "T_GITLAB": "gl-admin", "T_BOT": "bot-token",
 	}
 	for k, v := range extra {
 		base[k] = v
 	}
 	return func(k string) string { return base[k] }
+}
+
+// testDBName is the database the tests use: APROVA_TEST_DB_NAME, aprova_test by default.
+func testDBName() string {
+	if n := os.Getenv("APROVA_TEST_DB_NAME"); n != "" {
+		return n
+	}
+	return "aprova_test"
+}
+
+// mustBeTestDB stops the tests before they empty the tables of a database that
+// isn't a test one: every world starts with DELETE FROM on aprova's tables.
+func mustBeTestDB(t *testing.T) {
+	t.Helper()
+	if n := testDBName(); !strings.HasSuffix(n, "_test") {
+		t.Fatalf("refusing to empty database %q: its name must end in _test", n)
+	}
 }
 
 func newWorld(t *testing.T) *world { t.Helper(); return newWorldWith(t, nil, nil) }
@@ -386,6 +403,7 @@ func newWorldWith(t *testing.T, edit func(string) string, now func() time.Time) 
 	if os.Getenv("APROVA_TEST_DB_HOST") == "" {
 		t.Skip("APROVA_TEST_DB_HOST not set")
 	}
+	mustBeTestDB(t)
 	w := &world{t: t, bolha: newInstance(t, ""), jorn: newInstance(t, "svc-jorn"), gitlab: newGitlab(t), mail: &mailCatcher{}, hook: newHook(t)}
 	conf := testConfig
 	if edit != nil {
@@ -406,8 +424,10 @@ func newWorldWith(t *testing.T, edit func(string) string, now func() time.Time) 
 		t.Fatal(err)
 	}
 	t.Cleanup(srv.Close)
-	// Each test starts from an empty database.
-	for _, table := range []string{"sessions", "requests", "reviews", "digests", "prefs"} {
+	// Each test starts from an empty database. inbound and asked too: the inbox
+	// tests use fixed Message-IDs, which a second run would find already taken.
+	// comments and audit_log can't be emptied by the app's role; ids from uniq() keep tests apart there.
+	for _, table := range []string{"sessions", "requests", "reviews", "digests", "prefs", "asked", "inbound"} {
 		if _, err := srv.db.pool.Exec(context.Background(), "DELETE FROM "+table); err != nil {
 			t.Fatal(err)
 		}
