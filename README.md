@@ -18,6 +18,69 @@ One queue to approve sign-ups across the apps of a community. Moderators sign in
 - **API first:** everything the pages do is in the JSON API, with an aprova token made on the "API token" page.
 - Decision log, Portuguese and English.
 
+## Testing and security
+
+aprova holds admin credentials for several apps and decides who gets in, so it is tested against what would hurt: showing data about accounts that aren't waiting for approval, acting on an account that was already decided, and calling anything on an app beyond what approval needs. What is done today (2026-11-08):
+
+**Every pipeline.** GitLab CI ([`.gitlab-ci.yml`](.gitlab-ci.yml), plus the shared security stage from `open/gcn/ci-templates`, file `security.yml`). The test job runs on every pipeline; the security stage runs on every merge request and every push to `main`; the image is built and published only from `main`.
+
+- Blocking (the pipeline fails and no image is published):
+  - a `gofmt` check, `go vet`, and the full test suite against a real PostgreSQL 17 (with the `schema.sql` grants, as the app's own role);
+  - a build with each module left out (`-tags no_<name>`), so every module stays optional;
+  - `govulncheck`: known vulnerabilities in Go code paths aprova actually reaches (in the test job and in the security stage);
+  - `gitleaks`: secrets committed to the repository;
+  - `trivy`: critical vulnerabilities that have a fix, secrets and misconfigurations in the repository.
+- Informative (reported, not blocking): `semgrep`, `gosec`, `hadolint` (Dockerfile), `yamllint`, and `poutine` (security of the CI pipeline itself). The `gosec`/`semgrep` findings that are false positives are annotated in the code with the reason.
+
+**The test suite.** 101 tests (`go test -list`), plus the shared module contract that runs as subtests inside each module's `TestContract`. The core tests run the real HTTP handlers against fake Mastodon instances, a fake GitLab, mail and Mattermost catchers and PostgreSQL; without a database, 33 of them skip, so CI is where they all run. They cover:
+
+- privacy: no username, e-mail or reason for an account that isn't pending, ids aprova never handled stay unknown, notices carry no e-mails or reasons, webhook URLs and passwords stay out of errors;
+- authorization: only moderation roles get in, losing the role on the instance ends the session, the API follows the same rules as the pages, only senior roles de-escalate, an API token can't be replayed as a browser session, forms need a CSRF token and a same-site request;
+- the review rules: the approval and reject quorums act with the last reviewer's token, one vote per person per round, a reject blocks, a conflict escalates, failed checks keep the quorum from approving, asking the applicant starts a new round, a mail failure changes nothing, bulk reject, a request decided in the app meanwhile is gone;
+- mail: replies matched to the question and its sender, quoted text dropped, HTML-only and Latin-1 messages, NUL bytes, bounces that flag or reject, the welcome e-mail sent once and only to fresh requests;
+- each module against a fake of its app: the shared contract (`moduletest.Run`: pending checked right before acting, nothing approved twice, a vanished request is "gone", bad ids never reach the app, silent rejection where the app allows it), plus a test that fails if the module calls any API path it isn't meant to use, and the app's own corner cases (an active or accepted account is never deleted);
+- the agent: signed requests only, ids checked against the wire pattern, every recipe loads, the recipe runs without a shell;
+- pages: every template renders in both languages, no script or inline style (the CSP allows none), the translations have the same keys, the configuration refuses what is unclear, and the release notes.
+
+**Reviews.** A [Strix](https://github.com/usestrix/strix) penetration test found two issues, fixed in 0.6.4 with regression tests in `core/security_test.go`: an API token could be replayed as a browser session cookie, and a NUL byte in an applicant's reply blocked reading later replies. In 0.11.1 the findings of the updated linters (`gosec`, `semgrep`, `hadolint`) were fixed or annotated. These are what we checked; they are not an outside audit and don't certify anything.
+
+**Reporting a vulnerability.** Write to contato@gutocarvalho.net. Please don't open a public issue for it.
+
+## Architecture
+
+**Why it exists.** A community with several apps (Mastodon, a forge, a blog, video, photos…) gets sign-ups in each one, each with its own admin page, and the same few moderators have to check them all. Bot and spam sign-ups come in bursts, and one person deciding alone is easy to fool or to overload. aprova puts every pending sign-up in one queue, so moderators review them together, with the same rules for every app.
+
+**In plain words.**
+
+1. a moderator signs in at the panel with their account on the instance (OAuth); aprova checks they have a moderation role;
+2. aprova asks each enabled app, through its module, for the sign-ups waiting for approval, and shows them in one queue with the automatic checks;
+3. moderators review ("I would approve", "I would reject", "needs more information"), discuss, or e-mail the applicant a question;
+4. when the rules say so (a quorum, a reject, an escalated decision), aprova re-reads the request in the app and approves or rejects it there, through the app's own API.
+
+**Components.**
+
+```
+               browser (moderators)                  applicants' replies and bounces
+                      |                                            |
+          aprova  (panel + JSON API)  <---- IMAP, once a minute ---+  reply-to and sender mailboxes
+           |    |    |     |
+           |    |    |     +--> SMTP: questions, welcome, approval and reject e-mails
+           |    |    +--------> Mattermost webhook / bot DMs on the instance: digests (no e-mails)
+           |    +--> PostgreSQL  sessions (moderator token encrypted with AES-256-GCM), reviews,
+           |                     comments, decision log, questions asked (applicant e-mail as a hash)
+           |
+           +--> modules, one per app (official APIs only)
+                 mastodon, gitlab, lemmy, forgejo, writefreely, peertube
+                 agent --signed HTTP (HMAC-SHA256)--> aprova-agent, next to an app with no
+                                                      approval API (pixelfed, bookwyrm, friendica)
+```
+
+- The sign-up itself (username, e-mail, reason) lives only in the app. aprova reads it while it is pending and keeps, in PostgreSQL, only what it adds: the reviews, the discussion, the questions and the decision log. The app role can only add to the comments and the log; it can't change the schema.
+- A moderator's session is a cookie that points to a row in PostgreSQL; the moderator's instance token in that row is encrypted, re-checked for the role every minute, and revoked at sign-out. Several replicas share nothing but the database.
+- Background work runs every minute (expired sessions, replies, bounces, welcome e-mails) and every 10 minutes (digests); the last digest sent per profile is kept in PostgreSQL so replicas don't repeat it.
+- Apps' credentials come from the environment and are read only for the modules turned on in the configuration.
+- At bolha, aprova runs in Kubernetes behind the same edge as the other services.
+
 ## Modules
 
 | Module | App | Access |
