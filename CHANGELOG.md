@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.12.2 — 2026-11-08
+
+- The bolha menu (the floating “● bolha” button with the other services) now works on these pages: the security policy allows the menu's script, served from this same site, and nothing else.
+
 ## 0.12.1 — 2026-11-07
 
 - Queue page: the bot DM notice and its button sit on their own row, instead of overlapping the flash message and the filters.

@@ -63,13 +63,13 @@ func TestParseInboundDropsNUL(t *testing.T) {
 	}
 }
 
-// The pages run no script and no inline style: the CSP allows neither, and
-// the templates must not need them (a template that did would break silently).
+// The pages run no script and no inline style. The CSP allows script and fetch only from
+// 'self', for the bolha-bar the edge injects, never inline; the templates must hold none.
 func TestNoScriptOrInlineStyle(t *testing.T) {
 	rec := httptest.NewRecorder()
 	securityHeaders(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	csp := rec.Header().Get("Content-Security-Policy")
-	if !strings.Contains(csp, "default-src 'none'") || strings.Contains(csp, "script-src") || strings.Contains(csp, "unsafe-") {
+	if !strings.Contains(csp, "default-src 'none'") || !strings.Contains(csp, "script-src 'self'; connect-src 'self';") || strings.Count(csp, "script-src") != 1 || strings.Contains(csp, "unsafe-") {
 		t.Errorf("CSP %q", csp)
 	}
 	pages, err := fs.Glob(templateFS, "templates/*.html")

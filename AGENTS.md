@@ -104,7 +104,8 @@ A change that weakens one of these is a bug, even if no test catches it yet.
    `rejectQuorum` = 3. Tests `TestQuorum…`, `TestRejectQuorum…`, `TestOneVotePerPerson`, `TestFailedChecksKeepTheQuorumFromApproving`.
 8. **Notices carry no e-mails or reasons**, and secrets (webhook URLs, passwords) stay out of errors
    (`TestBotSendsDirectMessagesAndEachPersonCanTurnThemOff`, `TestWebhookURLStaysOutOfErrors`, `TestBadCredentialsStayOutOfErrors`).
-9. **No script, no inline style.** CSP is `default-src 'none'; style-src 'self'; …`; CSS goes in
+9. **No script, no inline style.** CSP is `default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; …`
+   (script/connect `'self'` only so the bolha-bar the edge injects can load; the pages have none); CSS goes in
    `core/assets/aprova.css` (`TestNoScriptOrInlineStyle`). Templates are `html/template`; user text is
    escaped (`TestEveryPageRenders`).
 10. **Both languages.** Every key exists in `en` and `pt-BR` (`TestTranslationsHaveTheSameKeys`); new
