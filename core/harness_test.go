@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
-	_ "gitlab.gutocarvalho.net/open/aprova/modules/all"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
+	_ "gitlab.gutocarvalho.net/open/bolha/aprova/modules/all"
 )
 
 type person struct{ id, username, role string }

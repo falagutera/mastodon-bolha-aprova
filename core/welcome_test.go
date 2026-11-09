@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 func TestWelcomeDue(t *testing.T) {

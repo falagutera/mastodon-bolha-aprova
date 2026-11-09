@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
-	"gitlab.gutocarvalho.net/open/aprova/moduletest"
-	"gitlab.gutocarvalho.net/open/aprova/wire"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/moduletest"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/wire"
 )
 
 const secret = "0123456789abcdef0123456789abcdef-test"

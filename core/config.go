@@ -14,7 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 // Config is the YAML file plus secrets from the environment.

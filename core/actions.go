@@ -15,7 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 const maxText = 4000

@@ -17,10 +17,10 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"gitlab.gutocarvalho.net/open/aprova/core"
-	"gitlab.gutocarvalho.net/open/aprova/internal/healthcheck"
-	"gitlab.gutocarvalho.net/open/aprova/internal/relnotes"
-	_ "gitlab.gutocarvalho.net/open/aprova/modules/all"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/core"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/internal/healthcheck"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/internal/relnotes"
+	_ "gitlab.gutocarvalho.net/open/bolha/aprova/modules/all"
 )
 
 // The version is X.Y.Z-BUILD: X.Y.Z from the VERSION file, BUILD the CI pipeline

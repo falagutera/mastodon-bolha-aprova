@@ -13,7 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 // Digest posts, per profile with a Mattermost webhook, how many requests are

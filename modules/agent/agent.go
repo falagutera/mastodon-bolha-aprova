@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
-	"gitlab.gutocarvalho.net/open/aprova/wire"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/wire"
 )
 
 func init() { module.Register("agent", New) }

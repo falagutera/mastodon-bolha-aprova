@@ -3,7 +3,7 @@ package core
 import (
 	"slices"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 func hasRole(role string, roles []string) bool { return role != "" && slices.Contains(roles, role) }

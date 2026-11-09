@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 // Fake is the app's side, as the contract needs to see it.

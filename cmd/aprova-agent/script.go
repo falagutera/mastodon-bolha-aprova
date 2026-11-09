@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/wire"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/wire"
 )
 
 // script runs a recipe file shipped inside this binary with the app's own

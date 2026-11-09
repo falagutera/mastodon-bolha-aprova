@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"gitlab.gutocarvalho.net/open/aprova/internal/relnotes"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/internal/relnotes"
 )
 
 // Every VERSION needs its CHANGELOG.md entry: the release notes page is built from it.

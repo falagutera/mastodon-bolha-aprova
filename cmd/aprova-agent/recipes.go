@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/wire"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/wire"
 )
 
 //go:embed recipes/pixelfed.php

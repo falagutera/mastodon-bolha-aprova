@@ -1,4 +1,4 @@
-module gitlab.gutocarvalho.net/open/aprova
+module gitlab.gutocarvalho.net/open/bolha/aprova
 
 go 1.26.0
 

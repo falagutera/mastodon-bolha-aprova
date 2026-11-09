@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 // Checks the core runs on every request, whatever the app.

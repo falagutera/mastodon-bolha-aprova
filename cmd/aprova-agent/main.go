@@ -27,8 +27,8 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/internal/healthcheck"
-	"gitlab.gutocarvalho.net/open/aprova/wire"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/internal/healthcheck"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/wire"
 )
 
 var build = "dev"

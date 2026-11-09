@@ -2,4 +2,4 @@
 
 package all
 
-import _ "gitlab.gutocarvalho.net/open/aprova/modules/gitlab"
+import _ "gitlab.gutocarvalho.net/open/bolha/aprova/modules/gitlab"

@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.gutocarvalho.net/open/aprova/internal/relnotes"
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/internal/relnotes"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 //go:embed templates/*.html

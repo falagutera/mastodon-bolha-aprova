@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 func hasCheck(cs []module.Check, name string) bool {

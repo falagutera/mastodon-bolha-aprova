@@ -16,7 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"gitlab.gutocarvalho.net/open/aprova/module"
+	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
 )
 
 func (s *Server) apiSession(w http.ResponseWriter, r *http.Request) (session, bool) {
