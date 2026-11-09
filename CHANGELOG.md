@@ -3,6 +3,12 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.14.0 — 2026-11-09
+
+- The bolha.io look: every page follows the shared stylesheet of the bolha apps (light and dark, header with the PT · EN switch, cards, pills, standard footer), with system fonts instead of the bundled web fonts.
+- The sections (queue, log, how it works, team chat, API token) and the queue filters are pills; the one you are on is highlighted. Release notes and sign out moved to the top right.
+- Status labels, comments and alerts use the shared colors, so they read the same in light and dark. Behavior is unchanged.
+
 ## 0.13.1 — 2026-11-09
 
 - The comment edit redirect is annotated for gosec (G710, open redirect): the target is always a `/r/` path on this host, with the service from the config and the id path-escaped, so it can't leave the site. No behavior change.

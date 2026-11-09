@@ -158,3 +158,27 @@ func TestEveryCheckAndDetailHasTexts(t *testing.T) {
 		}
 	}
 }
+
+// The pages follow the bolha.io look (open/gcn/ui VISUAL.md): family, brand bubble,
+// hero kicker, the key word in the accent and the standard footer; no web fonts.
+func TestPagesFollowTheLook(t *testing.T) {
+	tmpl, err := parseTemplates(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := viewData{T: strs("pt-BR"), Lang: "pt-BR", Version: "test", Domain: "aprova.example"}
+	var b bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&b, "index.html", v); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-family="bolha"`, `class="bubble"`, `class="kicker"`, `<em>`, `/assets/style.css`, `bolha.io</a>`} {
+		if !strings.Contains(b.String(), want) {
+			t.Errorf("index: missing %s", want)
+		}
+	}
+	for _, gone := range []string{"assets/artefatos.css", "assets/fonts"} {
+		if _, err := os.Stat(gone); err == nil {
+			t.Errorf("%s is back: the look uses style.css and system fonts", gone)
+		}
+	}
+}

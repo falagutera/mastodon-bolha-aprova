@@ -1,8 +1,11 @@
 {{template "head" .}}
-<h1>{{.T.rules_title}}</h1>
-<p class="lede">{{.T.rules_lede}}</p>
+<section class="hero">
+  <p class="kicker">{{.T.kicker}}</p>
+  <h1>{{.T.rules_title}}</h1>
+  <p class="lede">{{.T.rules_lede}}</p>
+</section>
 <div class="rules">
-{{range .Rules}}<section class="rule">
+{{range .Rules}}<section class="card rulecard">
 <h2>{{tf $.T "rules_profile" .Name}}</h2>
 <p class="meta">{{$.T.rules_services}}: {{join .Services}}</p>
 <ul>

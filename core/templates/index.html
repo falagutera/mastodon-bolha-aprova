@@ -1,6 +1,9 @@
 {{template "head" .}}
-<h1>{{.T.title}}</h1>
-<p class="lede">{{.T.lede}}</p>
-<p><a class="button" href="/login">{{.T.login}}</a></p>
+<section class="hero">
+  <p class="kicker">{{.T.kicker}}</p>
+  <h1>{{.T.hero_a}} <em>{{.T.hero_b}}</em></h1>
+  <p class="lede">{{.T.lede}}</p>
+  <p class="cta"><a class="btn" href="/login">{{.T.login}}</a></p>
+</section>
 <p class="note">{{.T.privacy}}</p>
 {{template "foot" .}}

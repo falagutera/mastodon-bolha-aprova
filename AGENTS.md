@@ -105,8 +105,10 @@ A change that weakens one of these is a bug, even if no test catches it yet.
 8. **Notices carry no e-mails or reasons**, and secrets (webhook URLs, passwords) stay out of errors
    (`TestBotSendsDirectMessagesAndEachPersonCanTurnThemOff`, `TestWebhookURLStaysOutOfErrors`, `TestBadCredentialsStayOutOfErrors`).
 9. **No script, no inline style.** CSP is `default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; …`
-   (script/connect `'self'` only so the bolha-bar the edge injects can load; the pages have none); CSS goes in
-   `core/assets/aprova.css` (`TestNoScriptOrInlineStyle`). Templates are `html/template`; user text is
+   (script/connect `'self'` only so the bolha-bar the edge injects can load; the pages have none); the look is
+   `core/assets/style.css`, a copy of `open/gcn/ui` (`sync.sh --assets core/assets`, never edited here;
+   `TestPagesFollowTheLook`, `check.sh --assets core/assets`); what is aprova's own goes in
+   `core/assets/aprova.css`, with the tokens, no web fonts (`TestNoScriptOrInlineStyle`). Templates are `html/template`; user text is
    escaped (`TestEveryPageRenders`).
 10. **Both languages.** Every key exists in `en` and `pt-BR` (`TestTranslationsHaveTheSameKeys`); new
     flash keys go in `flashes` and need `flash_<key>`. A key missing from a language renders the raw id;

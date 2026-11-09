@@ -1,43 +1,44 @@
 {{define "head"}}<!doctype html>
-<html lang="{{.T.lang}}">
+<html lang="{{.T.lang}}" data-family="bolha">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>{{.T.title}} · {{.Domain}}</title>
-<link rel="stylesheet" href="/assets/artefatos.css?v={{.Version}}">
+<link rel="stylesheet" href="/assets/style.css?v={{.Version}}">
 <link rel="stylesheet" href="/assets/aprova.css?v={{.Version}}">
 </head>
 <body>
 <div class="wrap">
-<header>
-  <div class="topbar">
-    <span class="eyebrow">{{.T.title}} · {{.Domain}}</span>
-    <span class="langsel"><a href="/?lang=pt"{{if eq .Lang "pt-BR"}} class="on"{{end}}>PT</a> <a href="/?lang=en"{{if eq .Lang "en"}} class="on"{{end}}>EN</a></span>
-  </div>
-{{if .Acct}}  <nav class="tabs">
-    <a href="/queue"{{if eq .Nav "queue"}} class="on" aria-current="page"{{end}}>{{.T.nav_queue}}</a>
-    <a href="/audit"{{if eq .Nav "audit"}} class="on" aria-current="page"{{end}}>{{.T.nav_audit}}</a>
-    <a href="/release-notes"{{if eq .Nav "notes"}} class="on" aria-current="page"{{end}}>{{.T.nav_notes}}</a>
-    <a href="/how-it-works"{{if eq .Nav "rules"}} class="on" aria-current="page"{{end}}>{{.T.nav_rules}}</a>
-    {{if .TeamChat}}<a href="{{.TeamChat}}" target="_blank" rel="noopener noreferrer">{{.T.nav_chat}}</a>{{end}}
-    <form method="post" action="/api-token" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="link">{{.T.nav_token}}</button></form>
-    <form method="post" action="/logout" class="logout">
+<header class="top">
+  <a class="brand" href="/"><span class="bubble"></span>aprova</a>
+  <span class="toplinks">
+    <a class="toggle" href="/release-notes"{{if eq .Nav "notes"}} aria-current="page"{{end}}>{{.T.nav_notes}}</a>
+    {{if .Acct}}<form method="post" action="/logout" class="inline">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <span class="who">@{{.Acct}} · {{.Role}}</span> <button type="submit" class="link">{{.T.logout}}</button>
-    </form>
-  </nav>
-{{end}}</header>
-<main>
+      <button type="submit" class="toggle">{{.T.logout}}</button>
+    </form>{{end}}
+    <span class="langsel" role="group" aria-label="{{.T.language}}">
+      <a href="/?lang=pt" hreflang="pt-BR"{{if eq .T.lang "pt-BR"}} aria-current="true"{{end}}>PT</a>·<a href="/?lang=en" hreflang="en"{{if eq .T.lang "en"}} aria-current="true"{{end}}>EN</a>
+    </span>
+  </span>
+</header>
+{{if .Acct}}<nav class="tabs" aria-label="{{.T.nav}}">
+  <a class="pilltab" href="/queue"{{if eq .Nav "queue"}} aria-current="page"{{end}}>{{.T.nav_queue}}</a>
+  <a class="pilltab" href="/audit"{{if eq .Nav "audit"}} aria-current="page"{{end}}>{{.T.nav_audit}}</a>
+  <a class="pilltab" href="/how-it-works"{{if eq .Nav "rules"}} aria-current="page"{{end}}>{{.T.nav_rules}}</a>
+  {{if .TeamChat}}<a class="pilltab" href="{{.TeamChat}}" target="_blank" rel="noopener noreferrer">{{.T.nav_chat}} ↗</a>{{end}}
+  <form method="post" action="/api-token" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit" class="pilltab">{{.T.nav_token}}</button></form>
+  <span class="stamp who"><i></i>@{{.Acct}} · {{.Role}}</span>
+</nav>
+{{end}}<main>
 {{if .Flash}}<p class="flash" role="status">{{.Flash}}</p>{{end}}
 {{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
 {{end}}
 {{define "foot"}}</main>
-<footer class="foot">
-  <a href="https://gitlab.gutocarvalho.net/open/bolha/aprova">{{.T.source}}</a>
-  {{if .Modules}}<span>{{.T.modules}}: {{range $i, $m := .Modules}}{{if $i}}, {{end}}{{$m}}{{end}}</span>{{end}}
-  <span>{{.T.times_in}} {{zone}}</span>
-  <span class="version">aprova {{.Version}}</span>
+<footer>
+  <a href="/release-notes">aprova {{.Version}}</a> · <a href="https://gitlab.gutocarvalho.net/open/bolha/aprova">{{.T.source}}</a> · {{.T.part_of}} <a href="https://bolha.io">bolha.io</a>
+  {{if .Modules}}<br>{{.T.modules}}: {{range $i, $m := .Modules}}{{if $i}}, {{end}}{{$m}}{{end}}{{end}} · {{.T.times_in}} {{zone}}
 </footer>
 </div>
 </body>

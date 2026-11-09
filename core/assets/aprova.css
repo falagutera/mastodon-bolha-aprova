@@ -1,79 +1,116 @@
-.tabs { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 0; border-bottom: 1px solid var(--line); }
-.tabs a.on, .filters a.on, .langsel a.on { font-weight: 600; text-decoration: underline; }
-.logout { margin-left: auto; display: flex; gap: .5rem; align-items: center; }
-.who { font-weight: 600; } .note, .when, .role, .email { color: var(--muted); }
-.filters { display: flex; gap: .9rem; flex-wrap: wrap; }
-.queue { list-style: none; padding: 0; }
-.queue li { padding: .6rem 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: .3rem .8rem; align-items: baseline; }
-.queue .reason { flex-basis: 100%; margin: .2rem 0 0; overflow-wrap: anywhere; }
-.st { font-size: .82rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--line); }
-.st-ready, .v-approve { color: #57c27a; } .st-blocked, .v-reject, .fail, .flag { color: #e08a83; }
-.st-escalated { color: #e3b341; } .st-awaiting { color: #7fa7e0; }
-.flag { font-size: .82rem; }
-.request { display: grid; grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); gap: 2rem; }
-.side { border-left: 1px solid var(--line); padding-left: 1.2rem; }
-.side ul { list-style: none; padding: 0; }
-.facts dt { color: var(--muted); } .facts dd { margin: 0 0 .6rem; overflow-wrap: anywhere; }
-.discussion { --disc: #7c8cf0; margin: 1.2rem 0; padding: .2rem 1.1rem .9rem; border-radius: 12px; border: 1px solid var(--line); border-left: 5px solid var(--disc); background: color-mix(in srgb, var(--disc) 7%, var(--surface)); }
-.discussion h2 { margin-top: .7rem; }
-.comments { list-style: none; padding: 0; margin: .5rem 0; }
-.comments li { --k: var(--line); margin: .55rem 0; padding: .5rem .8rem; border-radius: 10px; border: 1px solid var(--line); border-left: 4px solid var(--k); background: var(--surface); }
-.comments li.kind-review_approve, .comments li.kind-approve_note { --k: #3fae6a; }
-.comments li.kind-review_reject, .comments li.kind-reject_reason { --k: #d9534f; }
-.comments li.kind-info_question { --k: #3b9fd1; }
-.comments li.kind-info_answer { --k: #d9a93f; background: color-mix(in srgb, #d9a93f 8%, var(--surface)); }
-.comments li.kind-escalate { --k: #d9893f; }
-.comments li.kind-system { --k: var(--muted, #888); }
-.comments p { margin: .25rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.round { margin: 1rem 0; }
-.round + .round { border-top: 1px dashed var(--line); padding-top: .75rem; }
-.round-head { font-size: 1rem; margin: 0 0 .25rem; }
-.round.closed .round-head { color: var(--muted, #888); }
-.round.closed .comments li { opacity: .7; }
-.compose label { display: block; margin: .5rem 0; } .compose textarea { width: 100%; min-height: 4.5rem; }
-fieldset { border: 0; padding: 0; margin: .5rem 0; } legend { font-weight: 600; }
-.button.danger { border-color: #e08a83; }
-.audit { width: 100%; border-collapse: collapse; font-size: .9rem; } .audit td, .audit th { padding: .35rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-@media (max-width: 760px) { .request { grid-template-columns: 1fr; } .side { border-left: 0; padding-left: 0; } }
-.inline { display: inline; } pre.token { padding: .6rem; border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
+/* aprova: only what is its own. The look is assets/style.css (open/gcn/ui, never edited here).
+   Colors come from its tokens; the only own hues are the per-service card colors (.svc-N). */
+.inline{display:inline;margin:0}
+.hero{padding:26px 0 14px}
+.cta{margin:20px 0 0}
+.note{color:var(--text-dim);font-size:.92rem;max-width:72ch}
+.when,.role,.email{color:var(--text-dim)}
+.who{font-weight:700}
+.flash,.alert{border-radius:12px;padding:10px 14px;margin:14px 0;border:1px solid currentColor}
+.flash{color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+.alert{color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,var(--surface))}
 
-/* One card per service, each in its own color. */
-.svc { --svc: #3b9fd1; margin: 1rem 0; padding: .4rem 1.1rem .6rem; border-radius: 12px; border: 1px solid var(--line); border-left: 5px solid var(--svc); background: color-mix(in srgb, var(--svc) 7%, var(--surface)); }
-.svc h3 { display: flex; align-items: center; gap: .5rem; color: var(--svc); margin: .6rem 0 .2rem; }
-.svc h3 .dot { width: .7rem; height: .7rem; border-radius: 50%; background: var(--svc); }
-.svc h3 .count { font-size: .8rem; color: var(--ink); border: 1px solid var(--svc); border-radius: 999px; padding: 0 .5rem; }
-.svc .queue li:last-child { border-bottom: 0; }
-.svc .note, .svc .alert { margin: .4rem 0 .6rem; }
-.svc p.note { background: none; border: 0; padding: 0; max-width: none; }
-.svc-0 { --svc: #3b9fd1; } .svc-1 { --svc: #c46fd6; } .svc-2 { --svc: #d9893f; }
-.svc-3 { --svc: #3fae94; } .svc-4 { --svc: #e0628f; } .svc-5 { --svc: #8bb34a; }
+/* tabs, filters and the "back" link: pills (VISUAL.md rule 9) */
+.tabs,.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 0}
+.filters{margin:18px 0 6px}
+.pilltab,button.pilltab,button.toggle{display:inline-block;font-family:var(--mono);font-size:.74rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 13px;text-decoration:none;line-height:1.4;cursor:pointer}
+.pilltab:hover,button.pilltab:hover,button.toggle:hover{color:var(--text);border-color:var(--border-strong)}
+.pilltab[aria-current]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.tabs .who{margin:0 0 0 auto;font-weight:500}
+.back{margin:18px 0 0}
 
-/* Reject and ask need text: until it's there the box is red and Send is off.
+/* buttons the stylesheet doesn't have */
+button.danger{background:var(--danger);color:var(--paper)}
+button.link{background:none;border:0;padding:0;color:var(--accent-strong);font-weight:500;text-decoration:underline;text-underline-offset:2px;border-radius:0}
+
+/* queue */
+.st{font-family:var(--mono);font-size:.7rem;letter-spacing:.04em;padding:2px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text-dim)}
+.st-ready,.v-approve{color:var(--ok)} .st-blocked,.v-reject,.fail,.flag{color:var(--danger)}
+.st-escalated{color:var(--warn)} .st-awaiting{color:var(--info)}
+.st-ready,.st-blocked,.st-escalated,.st-awaiting{border-color:currentColor}
+.flag{font-size:.82rem}
+.counts{display:inline-flex;flex-wrap:wrap;gap:6px;vertical-align:middle;margin-left:8px}
+.profile>h2{font-size:1.25rem;letter-spacing:-.02em;margin:32px 0 6px}
+.queue{list-style:none;padding:0;margin:0}
+.queue li{padding:10px 0;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.queue .reason{flex-basis:100%;margin:2px 0 0;overflow-wrap:anywhere;color:var(--text-dim)}
+
+/* one card per service, each in its own hue */
+.svc{--svc:#3b9fd1;margin:14px 0;padding:6px 18px 10px;border-radius:16px;border:1px solid var(--border);border-left:5px solid var(--svc);background:color-mix(in srgb,var(--svc) 6%,var(--surface));box-shadow:var(--shadow)}
+.svc h3{display:flex;align-items:center;gap:8px;color:var(--svc);margin:10px 0 4px}
+.svc h3 .dot{width:10px;height:10px;border-radius:50%;background:var(--svc)}
+.svc h3 .count{font-family:var(--mono);font-size:.74rem;color:var(--text);border:1px solid var(--svc);border-radius:999px;padding:0 8px}
+.svc .queue li:last-child{border-bottom:0}
+.svc .note,.svc .alert{margin:6px 0 10px}
+.svc-0{--svc:#3b9fd1} .svc-1{--svc:#c46fd6} .svc-2{--svc:#d9893f}
+.svc-3{--svc:#3fae94} .svc-4{--svc:#e0628f} .svc-5{--svc:#8bb34a}
+.bulk{margin:8px 0 4px} .bulk summary{cursor:pointer;color:var(--text-dim)}
+.bulk label{display:block;margin:8px 0}
+.prefs{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0}
+.prefs .note{margin:0}
+
+/* a request */
+.request{display:grid;grid-template-columns:minmax(0,2fr) minmax(16rem,1fr);gap:32px;margin-top:10px}
+.request h1{font-size:clamp(1.8rem,5vw,2.6rem);margin:0 0 14px;overflow-wrap:anywhere}
+.side{border-left:1px solid var(--border);padding-left:20px}
+.side h2,.discussion h2{font-family:var(--mono);font-size:.76rem;letter-spacing:.13em;text-transform:uppercase;color:var(--text-dim);font-weight:600;margin:18px 0 8px}
+.side ul{list-style:none;padding:0}
+.reviews li{margin:4px 0}
+.quorum{font-family:var(--mono);color:var(--text)}
+.facts dt{color:var(--text-dim);font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}
+.facts dd{margin:0 0 10px;overflow-wrap:anywhere}
+.discussion{margin:20px 0;padding:4px 18px 14px;border-radius:16px;border:1px solid var(--border);border-left:5px solid var(--info);background:color-mix(in srgb,var(--info) 5%,var(--surface))}
+.comments{list-style:none;padding:0;margin:8px 0}
+.comments li{--k:var(--border);margin:9px 0;padding:8px 13px;border-radius:12px;border:1px solid var(--border);border-left:4px solid var(--k);background:var(--surface)}
+.comments li.kind-review_approve,.comments li.kind-approve_note{--k:var(--ok)}
+.comments li.kind-review_reject,.comments li.kind-reject_reason{--k:var(--danger)}
+.comments li.kind-info_question{--k:var(--info)}
+.comments li.kind-info_answer{--k:var(--warn);background:color-mix(in srgb,var(--warn) 7%,var(--surface))}
+.comments li.kind-escalate{--k:var(--accent)}
+.comments li.kind-system{--k:var(--text-faint)}
+.comments p{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.round{margin:16px 0}
+.round+.round{border-top:1px dashed var(--border);padding-top:12px}
+.round-head{font-size:1rem;margin:0 0 4px}
+.round.closed .round-head{color:var(--text-dim)}
+.round.closed .comments li{opacity:.7}
+.compose label{display:block;margin:8px 0} .compose textarea{width:100%;min-height:4.5rem;display:block;margin-top:4px}
+fieldset{border:0;padding:0;margin:8px 0} legend{font-weight:700}
+label.check{display:flex;gap:8px;align-items:baseline}
+.side details{margin:12px 0} .side summary{cursor:pointer;color:var(--text-dim)}
+
+/* reject and ask need text: until it's there the box is red and Send is off.
    The server refuses it anyway; this only says so before sending. */
-.needs-text-hint { display: none; margin: .2rem 0; font-size: .85rem; color: var(--crit); }
+.needs-text-hint{display:none;margin:3px 0;font-size:.85rem;color:var(--danger)}
 .review:has(.needs-text:checked) textarea:placeholder-shown,
-.compose textarea[required]:placeholder-shown:not(:focus):user-invalid { border: 2px solid var(--crit); background: var(--crit-soft); }
-.review:has(.needs-text:checked):has(textarea:placeholder-shown) .needs-text-hint { display: block; }
+.compose textarea[required]:placeholder-shown:not(:focus):user-invalid{border:2px solid var(--danger);background:color-mix(in srgb,var(--danger) 8%,var(--surface))}
+.review:has(.needs-text:checked):has(textarea:placeholder-shown) .needs-text-hint{display:block}
 .review:has(.needs-text:checked):has(textarea:placeholder-shown) button[type=submit],
-.compose:has(textarea[required]:placeholder-shown) button[type=submit] { opacity: .45; pointer-events: none; cursor: not-allowed; }
-.compose .alert { margin: .4rem 0; }
+.compose:has(textarea[required]:placeholder-shown) button[type=submit]{opacity:.45;pointer-events:none;cursor:not-allowed}
+.compose .alert{margin:6px 0}
 
-/* The review and the question to the applicant are separate boxes. */
-.box { border: 1px solid var(--line); border-radius: 12px; padding: .2rem 1rem .9rem; margin: 1rem 0; background: var(--surface); }
-.box h3 { margin: .7rem 0 .3rem; font-size: 1rem; }
-.note.small { font-size: .85rem; margin: .2rem 0 .5rem; }
-.edit summary { font-size: .85rem; color: var(--muted); cursor: pointer; }
+/* the review and the question to the applicant are separate boxes */
+.box{border:1px solid var(--border);border-radius:16px;padding:4px 16px 14px;margin:16px 0;background:var(--surface);box-shadow:var(--shadow)}
+.box h3{margin:11px 0 5px;font-size:1rem}
+.note.small{font-size:.85rem;margin:3px 0 8px}
+.edit summary{font-size:.85rem;color:var(--text-dim);cursor:pointer}
 
-/* Alerts: silent unless something fired. */
-.alerts { list-style: none; padding: 0; margin: .3rem 0; }
-.alerts li { padding: .45rem .7rem; border-radius: 8px; margin: .35rem 0; background: var(--crit-soft); color: var(--crit); }
-.alerts li small { display: block; color: var(--ink); opacity: .8; }
-.allclear { padding: .45rem .7rem; border-radius: 8px; background: var(--ok-soft); color: var(--ok); margin: .3rem 0; }
-.checked { font-size: .85rem; color: var(--muted); margin: .3rem 0 1rem; }
-/* release notes (shared relnotes markup) */
-.relnotes .release { margin: 1.4rem 0; } .relnotes h2 { margin-bottom: .3rem; }
-.relnotes h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: .8rem 0 .2rem; }
-.relnotes .summary { margin: .2rem 0 .4rem; }
-.rules .rule { margin: 1.4rem 0; } .rules h2 { margin-bottom: .3rem; } .rules li { margin: .45rem 0; } .rules .meta { opacity: .8; }
-.prefs { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1rem 0; }
-.prefs .note { display: block; margin: 0; }
+/* alerts: silent unless something fired */
+.alerts{list-style:none;padding:0;margin:5px 0}
+.alerts li{padding:7px 11px;border-radius:10px;margin:6px 0;background:color-mix(in srgb,var(--danger) 10%,var(--surface));color:var(--danger)}
+.alerts li small{display:block;color:var(--text);opacity:.8}
+.allclear{padding:7px 11px;border-radius:10px;background:color-mix(in srgb,var(--ok) 10%,var(--surface));color:var(--ok);margin:5px 0}
+.checked{font-size:.85rem;color:var(--text-dim);margin:5px 0 16px}
+
+/* log, token, how it works */
+.audit{font-size:.9rem}
+.audit td{overflow-wrap:anywhere}
+pre{font-family:var(--mono);font-size:.84rem;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow-wrap:anywhere;white-space:pre-wrap}
+pre.token{border-color:var(--accent);background:var(--accent-soft)}
+.rules{display:grid;gap:14px;margin-top:10px}
+.rulecard{padding:6px 20px 12px}
+.rulecard h2{font-size:1.1rem;margin:12px 0 4px}
+.rulecard .meta{color:var(--text-dim);font-family:var(--mono);font-size:.8rem;margin:0 0 6px}
+.rulecard li{margin:7px 0;color:var(--text-dim)}
+.rulecard li strong{color:var(--text)}
+@media (max-width:760px){.request{grid-template-columns:1fr}.side{border-left:0;padding-left:0}.tabs .who{margin-left:0}}

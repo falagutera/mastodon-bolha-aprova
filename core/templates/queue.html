@@ -1,12 +1,16 @@
 {{template "head" .}}
+<section class="hero">
+  <p class="kicker">{{.T.kicker}}</p>
+  <h1>{{.T.queue_a}} <em>{{.T.queue_b}}</em></h1>
+</section>
 {{if .DM}}<form method="post" action="/prefs" class="prefs">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   {{if .DMOff}}<span class="note">{{.T.dm_is_off}}</span> <input type="hidden" name="dm" value="on"> <button type="submit" class="link">{{.T.dm_turn_on}}</button>
   {{else}}<span class="note">{{.T.dm_is_on}}</span> <input type="hidden" name="dm" value="off"> <button type="submit" class="link">{{.T.dm_turn_off}}</button>{{end}}
 </form>{{end}}
 <p class="filters">
-  <a href="/queue"{{if eq .Filter ""}} class="on"{{end}}>{{.T.all}}</a>
-  {{range $f := .Filters}}<a href="/queue?f={{$f}}"{{if eq $.Filter $f}} class="on"{{end}}>{{t $.T (printf "filter_%s" $f)}}</a> {{end}}
+  <a class="pilltab" href="/queue"{{if eq .Filter ""}} aria-current="true"{{end}}>{{.T.all}}</a>
+  {{range $f := .Filters}}<a class="pilltab" href="/queue?f={{$f}}"{{if eq $.Filter $f}} aria-current="true"{{end}}>{{t $.T (printf "filter_%s" $f)}}</a> {{end}}
 </p>
 {{range .Profiles}}{{$p := .}}
 <section class="profile">
@@ -34,7 +38,7 @@
 {{if .CanBulk}}<details class="bulk"><summary>{{$.T.bulk_reject}}</summary>
   <label>{{$.T.bulk_reason}} <textarea name="body" required maxlength="4000"></textarea></label>
   <p class="note">{{$.T.reject_mail}}</p>
-  <button type="submit" class="button danger">{{$.T.bulk_reject}}</button>
+  <button type="submit" class="danger">{{$.T.bulk_reject}}</button>
 </details>{{end}}
 </form>
 {{end}}

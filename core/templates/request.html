@@ -1,8 +1,9 @@
 {{template "head" .}}{{$r := .Req}}{{$csrf := .CSRF}}
-<p><a href="/queue">← {{.T.nav_queue}}</a></p>
+<p class="back"><a class="pilltab" href="/queue">← {{.T.nav_queue}}</a></p>
 <div class="request">
 <div class="main">
-<h1>@{{$r.Username}} <span class="service">{{$r.ServiceName}}</span></h1>
+<p class="kicker">{{.T.kicker}} · {{$r.ServiceName}}</p>
+<h1>@{{$r.Username}}</h1>
 {{if $r.Pending}}
 <dl class="facts">
   <dt>{{.T.email}}</dt><dd>{{$r.Email}}</dd>
@@ -29,7 +30,7 @@
     <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/edit" class="compose">
       <input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="comment" value="{{.ID}}">
       <textarea name="body" required maxlength="4000" placeholder=" ">{{.Body}}</textarea>
-      <button type="submit" class="button">{{$.T.save}}</button>
+      <button type="submit">{{$.T.save}}</button>
     </form></details>{{end}}</li>
 {{end}}</ol>{{else}}<p class="note">{{$.T.round_empty}}</p>{{end}}
 {{if $many}}</div>{{end}}{{end}}{{else}}<p class="note">{{.T.no_comments}}</p>{{end}}
@@ -38,7 +39,7 @@
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/comment" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   <label>{{.T.comment}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
-  <button type="submit" class="button">{{.T.send}}</button>
+  <button type="submit">{{.T.send}}</button>
 </form>
 {{end}}
 </section>
@@ -69,7 +70,7 @@
   <label>{{.T.review_reason}} <textarea name="body" maxlength="4000" placeholder=" "></textarea></label>
   <p class="note small">{{.T.review_reason_help}}</p>
   <p class="needs-text-hint">{{.T.form_needs_text}}</p>
-  <button type="submit" class="button">{{.T.review_send}}</button>
+  <button type="submit">{{.T.review_send}}</button>
 </form>
 {{if .Mail}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/review" class="compose box">
   <input type="hidden" name="csrf" value="{{$csrf}}">
@@ -77,19 +78,19 @@
   <h3>{{.T.ask_title}}</h3>
   <label>{{.T.ask_body}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <p class="note small">{{.T.ask_help}}</p>
-  <button type="submit" class="button">{{.T.ask_send}}</button>
+  <button type="submit">{{.T.ask_send}}</button>
 </form>{{end}}
 {{if $r.Awaiting}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/answer" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   <label>{{.T.answer}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <p class="note">{{.T.answer_help}}</p>
-  <button type="submit" class="button">{{.T.send}}</button>
+  <button type="submit">{{.T.send}}</button>
 </form>{{end}}
 {{if not $r.Escalated}}<details><summary>{{.T.escalate}}</summary>
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/escalate" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   <label>{{.T.escalate_why}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
-  <button type="submit" class="button">{{.T.escalate}}</button>
+  <button type="submit">{{.T.escalate}}</button>
 </form></details>{{end}}
 {{end}}
 {{if $r.CanDeescalate}}<form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/deescalate"><input type="hidden" name="csrf" value="{{$csrf}}"><button type="submit" class="link">{{.T.deescalate}}</button></form>{{end}}
@@ -101,14 +102,14 @@
   {{$need := or $r.Tally.Blocked (not $r.Tally.ChecksOK)}}<label>{{.T.approve_note}} <textarea name="body" maxlength="4000"{{if $need}} required placeholder=" "{{end}}></textarea></label>
   <p class="note small">{{if $need}}{{.T.approve_note_required}}{{else}}{{.T.approve_note_optional}}{{end}}</p>
   {{if $r.SendsWelcome}}<p class="note">{{.T.welcome_note}}</p>{{end}}
-  <button type="submit" class="button">{{.T.approve_now}}</button>
+  <button type="submit">{{.T.approve_now}}</button>
 </form></details>
 <details><summary>{{.T.reject_now}}</summary>
 <form method="post" action="/r/{{$r.Service}}/{{$r.ID}}/reject" class="compose">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   <label>{{.T.reject_reason}} <textarea name="body" required maxlength="4000" placeholder=" "></textarea></label>
   <p class="note">{{if $r.SilentReject}}{{.T.reject_mail}}{{else}}{{.T.reject_app_mails}}{{end}}</p>
-  <button type="submit" class="button danger">{{.T.reject_now}}</button>
+  <button type="submit" class="danger">{{.T.reject_now}}</button>
 </form></details>
 {{end}}
 {{end}}
