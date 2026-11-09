@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.13.1 — 2026-11-09
+
+- The comment edit redirect is annotated for gosec (G710, open redirect): the target is always a `/r/` path on this host, with the service from the config and the id path-escaped, so it can't leave the site. No behavior change.
+
 ## 0.13.0 — 2026-11-09
 
 Two matching votes decide, in either direction.

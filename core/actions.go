@@ -323,7 +323,7 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request, sess session
 		log.Printf("edit %s: %v", svc.id, err)
 		s.renderError(w, r, http.StatusServiceUnavailable, "unavailable")
 	case formErr != "":
-		http.Redirect(w, r, back+"?error="+formErr+"#discussion", http.StatusSeeOther)
+		http.Redirect(w, r, back+"?error="+formErr+"#discussion", http.StatusSeeOther) // #nosec G710 -- always a /r/ path on this host: service from the config, id path-escaped, formErr a fixed code
 	default:
 		http.Redirect(w, r, back+"?done=edited#discussion", http.StatusSeeOther)
 	}
