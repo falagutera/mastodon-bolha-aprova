@@ -339,7 +339,7 @@ func (c *Config) validate(getenv func(string) string) error {
 		}
 		r := &p.Review
 		if r.Quorum == 0 {
-			r.Quorum = 3
+			r.Quorum = 2 // a majority of a panel of three: the third vote can't change it
 		}
 		if r.Quorum < 1 || r.Quorum > 10 {
 			return fmt.Errorf("config: profile %s: quorum must be 1 to 10", id)

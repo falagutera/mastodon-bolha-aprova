@@ -3,6 +3,14 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.13.0 — 2026-11-09
+
+Two matching votes decide, in either direction.
+
+- The reject quorum is now the profile's `review.quorum`, the same number that approves, instead of a fixed 3. With a panel of three, two matching votes are already a majority and the third can't change the outcome, so the request no longer waits for it.
+- `review.quorum` defaults to 2 (was 3). A single reject still blocks an automatic approval, and approve and reject in the same round still go to `on_conflict`.
+- The "How it works" page shows the new numbers on its own (it reads the running config).
+
 ## 0.12.2 — 2026-11-08
 
 - The bolha menu (the floating “● bolha” button with the other services) now works on these pages: the security policy allows the menu's script, served from this same site, and nothing else.

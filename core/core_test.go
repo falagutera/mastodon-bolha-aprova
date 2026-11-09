@@ -149,26 +149,25 @@ func TestRejectSendsTheStandardMessageOnly(t *testing.T) {
 	}
 }
 
-// Three rejections reject on their own, mirroring the approval quorum: the vote
+// The reject quorum is the approval quorum (2 on the bolha profile): the vote
 // that completes it rejects with that moderator's own token, and the audit names
 // who. No approval is cast, so there is no conflict and nothing escalates.
 func TestRejectQuorumRejectsWithTheLastReviewersToken(t *testing.T) {
 	w := newWorld(t)
 	id := uniq()
 	w.bolha.add(id, "dora", "dora@example.org", "same bio as a known spam ring")
-	p1, p2, sabia := w.login("p1"), w.login("p2"), w.login("sabia")
+	p1, p2 := w.login("p1"), w.login("p2")
 	p1.review("bolha-us", id, "reject", "looks like a spam ring")
-	p2.review("bolha-us", id, "reject", "same bio as a known bot")
 	if _, by := w.bolha.state(id); by != "" {
-		t.Fatal("rejected before three rejections")
+		t.Fatal("rejected after a single rejection")
 	}
-	if _, _, page := sabia.do(http.MethodGet, "/r/bolha-us/"+id, nil); !strings.Contains(page, "Review and reject") {
-		t.Error("the third reviewer isn't told their review rejects")
+	if _, _, page := p2.do(http.MethodGet, "/r/bolha-us/"+id, nil); !strings.Contains(page, "Review and reject") {
+		t.Error("the second reviewer isn't told their review rejects")
 	}
-	if loc := sabia.review("bolha-us", id, "reject", "agreed, no"); !strings.Contains(loc, "done=rejected") {
-		t.Fatalf("third reject: %s", loc)
+	if loc := p2.review("bolha-us", id, "reject", "same bio as a known bot"); !strings.Contains(loc, "done=rejected") {
+		t.Fatalf("second reject: %s", loc)
 	}
-	if _, by := w.bolha.state(id); by != "token-sabia" {
+	if _, by := w.bolha.state(id); by != "token-p2" {
 		t.Errorf("rejected with %q, want the last reviewer's own token", by)
 	}
 	if w.escalated("bolha-us", id) {
@@ -176,7 +175,7 @@ func TestRejectQuorumRejectsWithTheLastReviewersToken(t *testing.T) {
 	}
 	var detail string
 	w.srv.db.pool.QueryRow(context.Background(), `SELECT detail FROM audit_log WHERE request_id = $1 AND action = 'reject_quorum'`, id).Scan(&detail)
-	if detail != "reject quorum: @p1 + @p2 + @sabia" {
+	if detail != "reject quorum: @p1 + @p2" {
 		t.Errorf("audit: %q", detail)
 	}
 }
@@ -197,16 +196,40 @@ func TestRejectQuorumYieldsToAConflict(t *testing.T) {
 	}
 }
 
-// Two rejections are not a quorum; they still block an automatic approval.
-func TestTwoRejectionsAreNotAQuorum(t *testing.T) {
+// Below the quorum a rejection decides nothing; it still blocks an automatic
+// approval.
+func TestOneRejectionIsNotAQuorum(t *testing.T) {
 	w := newWorld(t)
 	id := uniq()
 	w.bolha.add(id, "eli", "eli@example.org", "hello")
 	p1, p2 := w.login("p1"), w.login("p2")
 	p1.review("bolha-us", id, "reject", "spam ring")
-	p2.review("bolha-us", id, "reject", "agreed")
 	if _, by := w.bolha.state(id); by != "" {
-		t.Error("two rejections rejected on their own")
+		t.Error("one rejection rejected on its own")
+	}
+	p2.review("bolha-us", id, "approve", "looks fine")
+	if _, by := w.bolha.state(id); by != "" {
+		t.Error("approved despite a reject in the round")
+	}
+}
+
+// Both directions use the same quorum, so a profile's number is a majority
+// for either side: with 2, two matching votes decide and a third can't change it.
+func TestQuorumIsTheSameForBothDirections(t *testing.T) {
+	r := func(id, v string) review { return review{ReviewerID: id, ReviewerRole: "mod", Verdict: v} }
+	for _, q := range []int{1, 2, 3} {
+		p := &Profile{Approve: []string{"mod"}, Review: ReviewConfig{Quorum: q}}
+		var yes, no []review
+		for i := range q {
+			yes = append(yes, r(fmt.Sprint("a", i), "approve"))
+			no = append(no, r(fmt.Sprint("r", i), "reject"))
+		}
+		if !p.count(false, yes, nil).Ready() || !p.count(false, no, nil).ReadyReject() {
+			t.Errorf("quorum %d: %d matching votes don't decide", q, q)
+		}
+		if q > 1 && (p.count(false, yes[:q-1], nil).Ready() || p.count(false, no[:q-1], nil).ReadyReject()) {
+			t.Errorf("quorum %d: decided with %d votes", q, q-1)
+		}
 	}
 }
 

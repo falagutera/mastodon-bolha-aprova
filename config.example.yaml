@@ -58,13 +58,13 @@ profiles:
     bulk_reject: [Admin, Owner]            # reject many at once
     escalate_to: [Admin, Owner]            # decide escalated requests
     review:
-      quorum: 3                            # approvals that approve on their own
+      quorum: 2                            # matching votes that decide on their own (approve or reject)
       on_conflict: escalate                # approve and reject at once: escalate, or block
       reset_on_new_info: true              # the applicant's answer starts a new round
       required_checks: [bot_signal, disposable_email]
-      # A reject quorum is fixed at 3 (not configurable): three moderator
-      # rejections reject the request on their own, mirroring the approval
-      # quorum. Fewer rejections still block an automatic approval as before.
+      # The same quorum rejects: that many moderator rejections reject the request
+      # on their own. 2 is a majority of a panel of three, so the third vote
+      # can't change the outcome. Fewer rejections still block an automatic approval.
     mail:
       from: "Example <aprova@example.social>"
       reply_to: "signups@example.social"

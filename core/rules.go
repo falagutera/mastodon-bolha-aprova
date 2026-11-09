@@ -33,7 +33,7 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess sessio
 	v := s.view(r, sess, "rules")
 	for _, p := range s.visibleProfiles(sess.Role) {
 		rv := ruleView{Name: p.Name, Approve: p.Approve, EscalateTo: p.EscalateTo, Quorum: p.Review.Quorum,
-			RejectQuorum: rejectQuorum, Escalate: p.Review.OnConflict == "escalate", Reset: *p.Review.ResetOnNewInfo,
+			RejectQuorum: p.Review.Quorum, Escalate: p.Review.OnConflict == "escalate", Reset: *p.Review.ResetOnNewInfo,
 			Checks: p.Review.RequiredChecks, Welcome: p.Mail.Welcome && s.mailer != nil,
 			AutoBounce: s.cfg.AutoRejectOnBounce, StaleDays: s.cfg.Checks.InfoStaleDays,
 			RejectMail: s.mailer != nil && p.Mail.From != "", ApproveMail: p.Mail.Approve && s.mailer != nil && p.Mail.From != ""}

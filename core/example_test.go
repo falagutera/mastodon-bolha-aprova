@@ -33,7 +33,7 @@ func TestConfigRefusesWhatIsUnclear(t *testing.T) {
 		"unknown check":       {"[bot_signal, disposable_email]", "[bot_signal, typo]"},
 		"http service":        {"url: https://code.example", "url: http://code.example"},
 		"unknown field":       {"lang: en            # en or pt-BR", "lang: en\nlanguage: en"},
-		"quorum":              {"quorum: 3 ", "quorum: 99 "},
+		"quorum":              {"quorum: 2 ", "quorum: 99 "},
 	} {
 		if !strings.Contains(base, change[0]) {
 			t.Fatalf("%s: example has no %q", name, change[0])

@@ -2,7 +2,7 @@
 
 One queue to approve sign-ups across the apps of a community. Moderators sign in with their Mastodon account, review requests together, ask applicants for more information, escalate doubtful cases and decide. The core knows no app: each app is a module, and an installation turns on the ones it uses.
 
-- **Reviews like a pull request:** "I would approve", "I would reject" or "needs more information". A quorum of approvals (3 by default) approves on its own, with the token of the moderator whose review completes it. A reject blocks it; approve and reject at once escalate.
+- **Reviews like a pull request:** "I would approve", "I would reject" or "needs more information". A quorum of matching reviews (2 by default, a majority of a panel of three) decides on its own, approving or rejecting with the token of the moderator whose review completes it. A reject blocks an automatic approval; approve and reject at once escalate.
 - **Checks:** signs of automated sign-ups and disposable e-mail (domain or MX host) keep the quorum from approving.
 - **Discussion:** internal comments on each request. The applicant never sees them.
 - **Ask the applicant:** an e-mail with the moderator's question; the request waits, and the answer starts a new round of reviews. With `APROVA_IMAP_*` set, aprova reads the reply-to mailbox every minute and attaches the answer itself: it matches the question's Message-ID, accepts only the applicant's own address (kept as a hash), and drops the quoted text. Moderators can still paste an answer by hand.
@@ -32,7 +32,7 @@ aprova holds admin credentials for several apps and decides who gets in, so it i
   - `trivy`: critical vulnerabilities that have a fix, secrets and misconfigurations in the repository.
 - Informative (reported, not blocking): `semgrep`, `gosec`, `hadolint` (Dockerfile), `yamllint`, and `poutine` (security of the CI pipeline itself). The `gosec`/`semgrep` findings that are false positives are annotated in the code with the reason.
 
-**The test suite.** 101 tests (`go test -list`), plus the shared module contract that runs as subtests inside each module's `TestContract`. The core tests run the real HTTP handlers against fake Mastodon instances, a fake GitLab, mail and Mattermost catchers and PostgreSQL; without a database, 33 of them skip, so CI is where they all run. They cover:
+**The test suite.** 102 tests (`go test -list`), plus the shared module contract that runs as subtests inside each module's `TestContract`. The core tests run the real HTTP handlers against fake Mastodon instances, a fake GitLab, mail and Mattermost catchers and PostgreSQL; without a database, 33 of them skip, so CI is where they all run. They cover:
 
 - privacy: no username, e-mail or reason for an account that isn't pending, ids aprova never handled stay unknown, notices carry no e-mails or reasons, webhook URLs and passwords stay out of errors;
 - authorization: only moderation roles get in, losing the role on the instance ends the session, the API follows the same rules as the pages, only senior roles de-escalate, an API token can't be replayed as a browser session, forms need a CSRF token and a same-site request;

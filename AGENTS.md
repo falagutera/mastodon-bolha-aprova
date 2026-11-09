@@ -60,7 +60,7 @@ and `t.Log(body)`. `TestEveryPageRenders` executes every template in both langua
 | `core/config.go` | YAML + env, `validate` (https only, modules on only when listed, `auth: moderator` only on the sign-in instance) |
 | `core/server.go` | routes, `page`/`action` wrappers (session, same-site, CSRF, 64 KiB form), `securityHeaders` (CSP), queue |
 | `core/actions.go` | `buildRequest` and `act`: every page and API action ends here; `apply` holds the review/quorum logic |
-| `core/policy.go` | who may view, review, decide, bulk-reject, de-escalate; `tally`, `rejectQuorum` |
+| `core/policy.go` | who may view, review, decide, bulk-reject, de-escalate; `tally` (one quorum for both directions) |
 | `core/auth.go`, `core/api.go`, `core/crypto.go` | OAuth sign-in, sessions (tokens sealed with AES-GCM), role re-check, API tokens |
 | `core/inbox.go`, `notify.go`, `welcome.go`, `digest.go`, `dmteam.go` | IMAP replies and bounces, SMTP, welcome e-mail, Mattermost/DM digests, bot recipients by role |
 | `core/rules.go` | the "How it works" page, built from the running config |
@@ -101,7 +101,7 @@ A change that weakens one of these is a bug, even if no test catches it yet.
    `TestAPITokenCannotBeReplayedAsABrowserSession`. Forms need CSRF and same-site (`action`; `TestActionsNeedCSRFAndSameSite`).
 7. **Quorum semantics.** Approval quorum with the last reviewer's token; one vote per person per round;
    a reject blocks; a conflict goes to `on_conflict`; failed required checks keep the quorum from approving;
-   `rejectQuorum` = 3. Tests `TestQuorum…`, `TestRejectQuorum…`, `TestOneVotePerPerson`, `TestFailedChecksKeepTheQuorumFromApproving`.
+   the reject quorum is the same `review.quorum` (default 2, a majority of three). Tests `TestQuorum…`, `TestRejectQuorum…`, `TestOneVotePerPerson`, `TestFailedChecksKeepTheQuorumFromApproving`.
 8. **Notices carry no e-mails or reasons**, and secrets (webhook URLs, passwords) stay out of errors
    (`TestBotSendsDirectMessagesAndEachPersonCanTurnThemOff`, `TestWebhookURLStaysOutOfErrors`, `TestBadCredentialsStayOutOfErrors`).
 9. **No script, no inline style.** CSP is `default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; …`
