@@ -7,4 +7,37 @@
 <pre class="token">{{.Message}}</pre>
 <p class="note">{{.T.token_note}}</p>
 <pre>curl -H "Authorization: Bearer {{.Message}}" https://{{.Domain}}/api/v1/queue</pre>
+
+<section class="card">
+<h2>{{.T.token_use_h}}</h2>
+<p>{{.T.token_use_intro}}</p>
+<ul>
+  <li><code>GET /api/v1/me</code> {{.T.token_ep_me}}</li>
+  <li><code>GET /api/v1/queue</code> {{.T.token_ep_queue}}</li>
+  <li><code>GET /api/v1/search?email=…</code> {{.T.token_ep_search}}</li>
+  <li><code>GET /api/v1/requests/{service}/{id}</code> {{.T.token_ep_request}}</li>
+  <li><code>POST /api/v1/requests/{service}/{id}/{action}</code> {{.T.token_ep_act}}</li>
+  <li><code>PATCH /api/v1/requests/{service}/{id}/comments/{comment}</code> {{.T.token_ep_edit}}</li>
+  <li><code>GET /api/v1/audit</code> {{.T.token_ep_audit}}</li>
+</ul>
+<p>{{.T.token_actions}}</p>
+<h2>{{.T.token_examples_h}}</h2>
+<pre>TOKEN={{.Message}}
+API=https://{{.Domain}}/api/v1
+
+# {{.T.token_ex_queue}}
+curl -s -H "Authorization: Bearer $TOKEN" $API/queue
+
+# {{.T.token_ex_request}}
+curl -s -H "Authorization: Bearer $TOKEN" $API/requests/SERVICE/ID
+
+# {{.T.token_ex_vote}}
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"verdict": "approve"}' $API/requests/SERVICE/ID/review
+
+# {{.T.token_ex_reject}}
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"verdict": "reject", "body": "{{.T.token_ex_reason}}"}' $API/requests/SERVICE/ID/review</pre>
+<p class="note">{{.T.token_docs}} <a href="https://gitlab.gutocarvalho.net/open/bolha/aprova#api">gitlab.gutocarvalho.net/open/bolha/aprova#api</a></p>
+</section>
 {{template "foot" .}}

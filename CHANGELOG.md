@@ -3,6 +3,11 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.14.1 — 2026-11-12
+
+- The API token page now explains how to use the token: the endpoints, the actions and what each one needs, and copy-ready examples with your token (list the queue, open a request, vote to approve or reject), plus a link to the full reference.
+- README: the API section documents getting a token, every endpoint (including editing your own comment), the actions and who may use them, the results, the error codes and examples.
+
 ## 0.14.0 — 2026-11-09
 
 - The bolha.io look: every page follows the shared stylesheet of the bolha apps (light and dark, header with the PT · EN switch, cards, pills, standard footer), with system fonts instead of the bundled web fonts.

@@ -129,18 +129,86 @@ Keep the two addresses **different**: the readers both mark messages seen, so a 
 
 ## API
 
-`Authorization: Bearer aprova_...`, a token made on the "API token" page after signing in. It is a session of the moderator: same role, re-checked on the instance every minute, and it expires in 8 hours. Tokens from the instance itself are refused, whatever app issued them, and cookies never authenticate the API.
+Everything the pages do is in the JSON API, under `/api/v1` on the panel's own address.
 
-Requests are only shown while pending. The module's credentials can read any account of the app, so aprova never returns an account's data once it is no longer a pending request, and ignores ids it never handled.
+### Getting a token
+
+Sign in to the panel and click **API token** in the menu. The page shows a token (`aprova_...`) once, with ready-to-use examples. Send it as `Authorization: Bearer aprova_...`.
+
+The token is a session of the moderator who made it: same role, re-checked on the instance every minute, and it expires in 8 hours. Signing out on the instance or losing the role ends it too. Tokens from the instance itself are refused, whatever app issued them, and cookies never authenticate the API. Make a new one when it expires; don't share it.
+
+The API follows the same rules as the pages: you see only the profiles your role sees, and can only do what the panel would let you do. Requests are only shown while pending. The module's credentials can read any account of the app, so aprova never returns an account's data once it is no longer a pending request, and ignores ids it never handled.
+
+### Endpoints
 
 | | |
 |---|---|
 | `GET /api/v1/me` | Account, role, visible profiles, modules |
-| `GET /api/v1/queue` | Pending requests per profile and service |
+| `GET /api/v1/queue` | Pending requests per profile and service, with counts by status |
 | `GET /api/v1/search?email=` | Pending requests with that e-mail, in every visible service |
-| `GET /api/v1/requests/{service}/{id}` | One request: checks, reviews, discussion, what you may do |
-| `POST /api/v1/requests/{service}/{id}/{action}` | `review` (`verdict`: approve, reject, info), `approve`, `reject`, `escalate`, `deescalate`, `answer`, `comment`; JSON body `{"verdict": "...", "body": "..."}` |
-| `GET /api/v1/audit` | Decision log of the visible profiles |
+| `GET /api/v1/requests/{service}/{id}` | One request: checks, reviews, tally, discussion, what you may do |
+| `POST /api/v1/requests/{service}/{id}/{action}` | An action (below); JSON body `{"verdict": "...", "body": "..."}` |
+| `PATCH /api/v1/requests/{service}/{id}/comments/{comment}` | Fix the text of one of your own comments; JSON body `{"body": "..."}` |
+| `GET /api/v1/audit` | Decision log of the visible profiles (latest 300 entries) |
+
+`{service}` is the service id from the configuration (`services:` keys; in the queue, `profiles[].services[].id`) and `{id}` is the request id in that app (`items[].id`).
+
+In the queue, each item has `status` (`new`, `reviewing`, `ready`, `blocked`, `awaiting`, `escalated`), `approvals`, `rejects`, `needed`, `flags` (failed checks), `stale` and `undeliverable` (the question e-mail bounced). The request view adds `can_review`, `can_decide`, `would_approve` / `would_reject` (your vote completes the quorum) and `my_vote`.
+
+### Actions
+
+| `{action}` | Who | Body |
+|---|---|---|
+| `review` | reviewers | `verdict`: `approve`, `reject` (needs `body`, the reason) or `info` (needs `body`, the question e-mailed to the applicant). This is a vote; the quorum decides |
+| `approve` | roles that decide | Approves now. `body` is a note, required when going past a reject vote or a failed check |
+| `reject` | roles that decide | Rejects now. `body` (the reason) is required; it stays with the team, the applicant gets the standard message |
+| `escalate` | reviewers | `body` (why) is required |
+| `deescalate` | senior roles | — |
+| `comment` | reviewers | `body` is required |
+| `answer` | reviewers | The applicant's answer pasted from the mailbox, while the request waits for one; `body` is required |
+
+A success answers `200` with `{"result": "..."}`: `reviewed`, `asked`, `approved`, `rejected`, `escalated`, `deescalated`, `commented`, `answered`, `edited`, or `already` (decided before) and `gone` (no longer pending in the app).
+
+### Errors
+
+Errors come as `{"error": "code"}`:
+
+| Status | Code | |
+|---|---|---|
+| 401 | `missing_token`, `bad_token` | No aprova token, or expired, revoked or the role was lost |
+| 400 | `bad_json`, `too_long`, `email` | Body not JSON, text over the limit, bad `email` in search |
+| 403 | `forbidden`, `unauthorized`, `not_your_comment` | Your role can't do that; the app refused the credentials; not your comment |
+| 404 | `not_found` | Unknown service, request, action, or a profile you don't see |
+| 422 | `empty`, `reason_required`, `question_required`, `note_required`, `why_required`, `bad_verdict`, `not_waiting`, `mail` | Something the request needs; fix it and send again |
+| 502 / 503 | `instance`, `unavailable` | The instance or the database didn't answer; try again |
+
+### Examples
+
+```sh
+TOKEN=aprova_...            # from the "API token" page
+API=https://aprova.example.org/api/v1
+
+curl -s -H "Authorization: Bearer $TOKEN" $API/me
+curl -s -H "Authorization: Bearer $TOKEN" $API/queue
+curl -s -H "Authorization: Bearer $TOKEN" "$API/search?email=someone@example.org"
+curl -s -H "Authorization: Bearer $TOKEN" $API/requests/main/12345
+
+# vote to approve
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"verdict": "approve"}' $API/requests/main/12345/review
+
+# vote to reject; the reason stays with the team
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"verdict": "reject", "body": "spam account"}' $API/requests/main/12345/review
+
+# ask the applicant something (sent by e-mail; the answer is attached when it arrives)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"verdict": "info", "body": "Which community are you coming from?"}' $API/requests/main/12345/review
+
+# comment for the team
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"body": "Same IP as the spam from yesterday."}' $API/requests/main/12345/comment
+```
 
 ## The agent
 
