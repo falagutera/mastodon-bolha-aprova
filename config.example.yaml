@@ -1,26 +1,39 @@
 # aprova configuration. Secrets never go here: they come from the environment
-# (see .env.example), and this file only names the variables.
+# (see .env.example), and this file only names the variables (token_env, ...).
+#
+# How to turn an app on: list its module under `modules:`, add a block under
+# `services:`, and put the service id in a profile's `services:`. Then set the
+# secret the block names in `.env`. The blocks below the default are commented,
+# one per supported app: uncomment the ones you use.
+#
+# As shipped, this file runs with just Mastodon sign-in on one instance, so it
+# boots with only APROVA_CLIENT_ID / APROVA_CLIENT_SECRET / APROVA_ENCRYPTION_KEY
+# and the database set.
 
-# Moderators sign in with their account on this Mastodon instance. Roles below
-# are role names there.
+# Moderators sign in with their account on this Mastodon instance. The role
+# names under `approve:` / `escalate_to:` are role names there.
 instance: https://example.social
 base_url: https://aprova.example.social
 lang: en            # en or pt-BR
 
-# When the question e-mail to an applicant bounces (undeliverable), the request
-# is flagged "e-mail not delivered" in the panel. Turn this on to also reject it
-# on its own. Off by default; never applies to auth: moderator services.
-# auto_reject_on_bounce: false
 # Timezone the panel shows times in (IANA name).
 # timezone: America/Sao_Paulo
+
+# When the question e-mail to an applicant bounces (undeliverable), the request
+# is flagged "e-mail not delivered". Turn this on to also reject it on its own.
+# Off by default; never applies to auth: moderator services.
+# auto_reject_on_bounce: false
+
 # Reach a public host through a URL inside the cluster instead of the edge
-# (login, API, DMs). The app sees its public Host and X-Forwarded-Proto: https.
+# (so a burst of fake logins can't get aprova's egress IP banned at a WAF).
+# The app still sees the public Host and X-Forwarded-Proto: https.
 # internal_routes:
 #   example.social: http://web.example.svc.cluster.local:3000
 
-# Modules to load: one, some, or all. Nothing else runs, opens connections or
-# reads secrets. An empty list stops aprova at startup.
-modules: [mastodon, gitlab]
+# Modules to load: one, some, or all. Nothing else runs, opens a connection or
+# reads a secret. An empty list stops aprova at startup. To leave a module out
+# of the binary entirely, build with its tag, e.g. go build -tags no_gitlab.
+modules: [mastodon]
 
 services:
   # auth: moderator acts with the signed-in moderator's own token, so the
@@ -30,30 +43,90 @@ services:
     name: example.social
     url: https://example.social
     auth: moderator
-    # Optional read-only token (admin:read:accounts) so the Mattermost digest can
-    # count pending sign-ups when nobody is signed in.
+    # Optional read-only service-account token (admin:read:accounts) so the
+    # digest and the welcome e-mail can list pending sign-ups with nobody
+    # signed in. Set APROVA_MAIN_DIGEST_TOKEN in .env.
     # digest_token_env: APROVA_MAIN_DIGEST_TOKEN
 
-  # auth: token uses a service account, for instances the team has no accounts on.
-  sister:
-    module: mastodon
-    name: sister.example
-    url: https://sister.example
-    auth: token
-    token_env: APROVA_SISTER_TOKEN
+  # --- More apps: uncomment a block, add its module to `modules:` above and
+  #     its id to a profile's `services:` below, and set the .env variable. ---
 
-  # GitLab needs an admin token: use a dedicated admin user just for this.
-  code:
-    module: gitlab
-    name: code.example
-    url: https://code.example
-    auth: token
-    token_env: APROVA_GITLAB_TOKEN
+  # Another Mastodon instance the team has no accounts on (a service account).
+  # Scopes: admin:read:accounts admin:write:accounts.
+  # sister:
+  #   module: mastodon
+  #   name: sister.example
+  #   url: https://sister.example
+  #   auth: token
+  #   token_env: APROVA_SISTER_TOKEN
+
+  # GitLab with admin approval of new users. Admin token (scope: api) of a
+  # dedicated admin user (GitLab has nothing smaller). Reject deletes the
+  # pending user; GitLab e-mails the person on reject, approve on approve.
+  # code:
+  #   module: gitlab
+  #   name: code.example
+  #   url: https://code.example
+  #   auth: token
+  #   token_env: APROVA_GITLAB_TOKEN
+
+  # Lemmy with "require application". JWT of a dedicated admin account. Reject
+  # purges the applicant (Lemmy always e-mails a denial); approve gets Lemmy's
+  # welcome. The modlog is public.
+  # forum:
+  #   module: lemmy
+  #   name: forum.example
+  #   url: https://forum.example
+  #   auth: token
+  #   token_env: APROVA_LEMMY_TOKEN
+
+  # Forgejo with manual confirmation of new accounts (REGISTER_MANUAL_CONFIRM).
+  # Site admin token (read:admin, write:admin, read:user). Approve activates the
+  # account; reject deletes it. Forgejo sends no e-mail either way.
+  # forge:
+  #   module: forgejo
+  #   name: forge.example
+  #   url: https://forge.example
+  #   auth: token
+  #   token_env: APROVA_FORGEJO_TOKEN
+
+  # PeerTube with registration approval (8.3+). token_env holds "username:password"
+  # of a dedicated Moderator user (password grant; the token is refreshed in
+  # memory). Reject is silent; approve lets PeerTube send its welcome.
+  # tube:
+  #   module: peertube
+  #   name: tube.example
+  #   url: https://tube.example
+  #   auth: token
+  #   token_env: APROVA_PEERTUBE_TOKEN
+
+  # WriteFreely with the sign-up approval patch (open/custom/writefreely,
+  # approval_required). The instance's approval_api_key. Approve lifts the hold;
+  # reject deletes the account. WriteFreely sends no e-mail either way.
+  # blog:
+  #   module: writefreely
+  #   name: blog.example
+  #   url: https://blog.example
+  #   auth: token
+  #   token_env: APROVA_WRITEFREELY_TOKEN
+
+  # An app with no approval API (pixelfed, bookwyrm, friendica), reached through
+  # aprova-agent running next to it (see "The agent" in README). token_env is a
+  # secret shared with the agent (32+ chars). public_url is where applicants go.
+  # photos:
+  #   module: agent
+  #   name: photos.example
+  #   public_url: https://photos.example
+  #   url: http://aprova-agent.photos.svc.cluster.local:8090
+  #   auth: token
+  #   token_env: APROVA_PHOTOS_AGENT_SECRET
 
 profiles:
+  # A profile groups services and says which instance roles approve, bulk-reject
+  # and decide escalated requests. A service belongs to exactly one profile.
   community:
     name: Community
-    services: [main, sister]
+    services: [main]                       # add sister, code, forum, ... as you enable them
     approve: [Moderator, Admin, Owner]     # review and decide one by one
     bulk_reject: [Admin, Owner]            # reject many at once
     escalate_to: [Admin, Owner]            # decide escalated requests
@@ -62,52 +135,57 @@ profiles:
       on_conflict: escalate                # approve and reject at once: escalate, or block
       reset_on_new_info: true              # the applicant's answer starts a new round
       required_checks: [bot_signal, disposable_email]
-      # The same quorum rejects: that many moderator rejections reject the request
-      # on their own. 2 is a majority of a panel of three, so the third vote
-      # can't change the outcome. Fewer rejections still block an automatic approval.
     mail:
       from: "Example <aprova@example.social>"
       reply_to: "signups@example.social"
       lang: en
-      # Leave these out to use the built-in texts. Fields: .Username .Service .Question
-      # Rejection: always sent by aprova (the modules reject silently), never with the reason.
-      # reject_subject: "Your request to join {{.Service}}"
-      # reject_body: |
-      #   Hello, thank you for your interest in {{.Service}}. At the moment we can't accept your request.
-      # Approval e-mail (off by default), besides the app's own: where to sign in, rules,
-      # other services. Fields: .Username .Service .URL
+      # Leave the texts out to use the built-in ones (Portuguese and English).
+      # Fields: .Username .Service (and .URL in the approval e-mail).
+      # Welcome e-mail to every new request (off by default). Tracked like a
+      # question: the reply lands in the request, a bounce flags it.
+      # welcome: true
+      # welcome_subject: "We received your account request on {{.Service}}"
+      # welcome_body: |
+      #   Hello, we received your request for {{.Service}} ({{.Username}}). Tell us
+      #   who you are, what you do and what you plan to post: just reply to this e-mail.
+      # Approval e-mail (off by default), besides the app's own: where to sign in,
+      # rules, other services.
       # approve: true
       # approve_subject: "Your account on {{.Service}} was approved"
       # approve_body: |
       #   Hello, your account on {{.Service}} ({{.Username}}) was approved. Sign in at {{.URL}}.
-      # Welcome e-mail to every new request (off by default). Tracked like a question:
-      # the reply lands in the request, a bounce flags it "e-mail not delivered".
-      # Built-in text is in Portuguese and English. Fields: .Username .Service
-      # welcome: true
-      # welcome_subject: "We received your account request on {{.Service}}"
-      # welcome_body: |
-      #   Hello, we received your request for {{.Service}} ({{.Username}}). Tell us who you are,
-      #   what you do and what you plan to post: just reply to this e-mail.
+      # Rejection: always sent by aprova (the modules reject silently), never with
+      # the internal reason.
+      # reject_subject: "Your request to join {{.Service}}"
+      # reject_body: |
+      #   Hello, thank you for your interest in {{.Service}}. At the moment we can't accept your request.
     # Mattermost incoming webhook for the digest and escalations. Off when unset.
     # mattermost_webhook_env: APROVA_COMMUNITY_MATTERMOST
     # Direct messages from a bot account on the sign-in instance (token with
     # write:statuses). Off when unset; each person can turn them off in the panel.
     # mastodon_dm:
     #   token_env: APROVA_BOT_TOKEN
-    #   recipients: [ana, bia]              # the digest of pending sign-ups
+    #   recipients: [ana, bia]              # the digest of pending sign-ups, by username
     #   escalation_recipients: [carla]      # escalations
-    #   # Or by role on the instance (ids from the admin roles page), looked up with a
-    #   # token with admin:read:accounts; joins and leaves need no config change.
-    #   recipient_role_ids: [1, 5, 3]
-    #   escalation_role_ids: [5, 3]
-    #   lookup_token_env: APROVA_DIGEST_TOKEN
+    #   # Or by role on the instance (ids from the admin roles page), looked up
+    #   # with a token with admin:read:accounts; joins and leaves need no change.
+    #   # recipient_role_ids: [1, 5, 3]
+    #   # escalation_role_ids: [5, 3]
+    #   # lookup_token_env: APROVA_MAIN_DIGEST_TOKEN
     #   digest_hours: [9, 14, 20]           # digest DM at these hours only, if anything waits
-  infra:
-    name: Infrastructure
-    services: [code]
-    approve: [Admin, Owner]
-    bulk_reject: [Admin, Owner]
-    escalate_to: [Admin, Owner]
+
+  # A second profile, e.g. for a forge, with its own roles and services.
+  # infra:
+  #   name: Infrastructure
+  #   services: [code]
+  #   approve: [Admin, Owner]
+  #   bulk_reject: [Admin, Owner]
+  #   escalate_to: [Admin, Owner]
+  #   review:
+  #     quorum: 2
+  #     on_conflict: escalate
+  #     reset_on_new_info: true
+  #     required_checks: [bot_signal, disposable_email]
 
 checks:
   disposable_domains: [tinyhost.shop]      # also matched against the e-mail domain's MX hosts

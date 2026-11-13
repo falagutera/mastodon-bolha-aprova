@@ -1,0 +1,49 @@
+# Quickstart. Put it behind your reverse proxy (the session cookie needs HTTPS).
+#
+#   1. Register the OAuth app on your instance and fill .env   (see README > Install)
+#        cp .env.example .env
+#   2. cp config.example.yaml aprova.yaml   and edit it
+#   3. docker compose up -d
+#
+# Postgres applies schema.sql on first boot only (an empty data dir). After an
+# upgrade that changes schema.sql, re-apply it by hand as the database owner.
+# The app connects as a limited role 'aprova'; the tables are owned by the
+# superuser, so the app can read/append but can't alter the schema (see README).
+services:
+  aprova:
+    build: .
+    image: aprova:local
+    container_name: aprova
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./aprova.yaml:/config/aprova.yaml:ro
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    ports:
+      - "127.0.0.1:8080:8080"   # behind your HTTPS reverse proxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${APROVA_DB_NAME:-aprova}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      # Used by the init script to create the limited app role.
+      APROVA_DB_PASSWORD: ${APROVA_DB_PASSWORD:?set APROVA_DB_PASSWORD in .env}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./contrib/initdb:/docker-entrypoint-initdb.d:ro
+      - ./schema.sql:/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${APROVA_DB_NAME:-aprova}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
