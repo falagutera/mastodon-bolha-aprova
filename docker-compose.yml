@@ -35,7 +35,7 @@ services:
     environment:
       POSTGRES_DB: ${APROVA_DB_NAME:-aprova}
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD in .env}
       # Used by the init script to create the limited app role.
       APROVA_DB_PASSWORD: ${APROVA_DB_PASSWORD:?set APROVA_DB_PASSWORD in .env}
     volumes:
