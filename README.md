@@ -2,6 +2,24 @@
 
 One queue to approve sign-ups across the apps of a community. Moderators sign in with their Mastodon account, review requests together, ask applicants for more information, escalate doubtful cases and decide. The core knows no app: each app is a module, and an installation turns on the ones it uses.
 
+## Contents
+
+- [How it works](#how-it-works)
+- [Screenshot](#screenshot)
+- [Modules](#modules)
+- [Install](#install)
+- [Features](#features)
+- [Mail](#mail)
+- [API](#api)
+- [The agent](#the-agent)
+- [Writing a module](#writing-a-module)
+- [Architecture](#architecture)
+- [Testing and security](#testing-and-security)
+- [Versions](#versions)
+- [Development](#development)
+- [License](#license)
+- [Bot account](#bot-account)
+
 ## How it works
 
 1. a moderator signs in at the panel with their account on the instance (OAuth); aprova checks they have a moderation role;
