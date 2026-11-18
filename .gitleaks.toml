@@ -3,8 +3,16 @@
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "Test fixtures: constant secrets used only by the tests"
 paths = [
   '''.*_test\.go$''',
+]
+
+[[allowlists]]
+description = "Placeholders in .env.example and the throwaway Postgres of the CI test job (old commits)"
+regexTarget = "line"
+regexes = [
+  '''^\s*(POSTGRES_PASSWORD|PGPASSWORD):\s*admin\s*$''',
+  '''^[A-Z_]*PASSWORD=change-me(-too)?\s*$''',
 ]
