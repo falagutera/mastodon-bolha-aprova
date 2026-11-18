@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -113,6 +114,10 @@ func TestWelcomeSkipsTouchedAndModeratorQueue(t *testing.T) {
 	w.jorn.add(old, "velho", "velho@example.org", "r")
 	p1 := w.login("p1")
 	p1.review("jornalismo", old, "approve", "")
+	// A team comment is internal: the applicant is still greeted.
+	talked := uniq()
+	w.jorn.add(talked, "comentada", "comentada@example.org", "r")
+	p1.post("/r/jornalismo/"+talked+"/comment", url.Values{"body": {"quem é?"}})
 	// bolha-us is auth: moderator with no digest token: greeted from the queue.
 	fresh := uniq()
 	w.bolha.add(fresh, "fresca", "fresca@example.org", "r")
@@ -137,6 +142,9 @@ func TestWelcomeSkipsTouchedAndModeratorQueue(t *testing.T) {
 	}
 	if got["velho@example.org"] != 0 {
 		t.Error("greeted a request already reviewed")
+	}
+	if got["comentada@example.org"] != 1 {
+		t.Errorf("request with only a team comment greeted %d times", got["comentada@example.org"])
 	}
 	if got["fresca@example.org"] != 1 {
 		t.Errorf("moderator-auth request greeted %d times", got["fresca@example.org"])

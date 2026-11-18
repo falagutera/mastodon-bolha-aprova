@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.14.2 — 2026-11-18
+
+- The welcome e-mail is no longer skipped because the team commented on the request. Only a review or an e-mail already sent to the applicant count now: comments are internal, and when the mail server refused us for a while, a comment left in the meantime meant the person never got the welcome. Requests from the last 72 hours that missed it get it on the next pass.
+
 ## 0.14.1 — 2026-11-12
 
 - The API token page now explains how to use the token: the endpoints, the actions and what each one needs, and copy-ready examples with your token (list the queue, open a request, vote to approve or reject), plus a link to the full reference.

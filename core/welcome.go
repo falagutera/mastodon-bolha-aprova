@@ -42,7 +42,9 @@ func (s *Server) welcomeAll(ctx context.Context) {
 }
 
 // welcome sends the welcome e-mail to each request that is new: recent, with an
-// e-mail, undecided and with nothing on it yet (no comment, review or question).
+// e-mail, undecided and not yet reviewed or e-mailed (no review, no question).
+// The team's comments don't count: the applicant never sees them, and a comment
+// left while the mail server refused us used to cost the request its welcome.
 func (s *Server) welcome(ctx context.Context, svc *service, reqs []module.Request) {
 	p := svc.profile
 	if !p.Mail.Welcome || s.mailer == nil || p.Mail.From == "" {
@@ -63,7 +65,6 @@ func (s *Server) welcome(ctx context.Context, svc *service, reqs []module.Reques
 			}
 			var touched bool
 			if err := tx.QueryRow(ctx, `SELECT
-				EXISTS (SELECT 1 FROM comments WHERE service = $1 AND request_id = $2) OR
 				EXISTS (SELECT 1 FROM reviews WHERE service = $1 AND request_id = $2) OR
 				EXISTS (SELECT 1 FROM asked WHERE service = $1 AND request_id = $2)`,
 				svc.id, q.ID).Scan(&touched); err != nil {
