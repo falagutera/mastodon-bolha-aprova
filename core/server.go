@@ -143,6 +143,7 @@ func (s *Server) Run(ctx context.Context) {
 				s.readReplies(ctx)
 				s.readBounces(ctx)
 				s.welcomeAll(ctx)
+				s.rejectUnanswered(ctx)
 			}
 		}
 	}()
@@ -201,6 +202,19 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// systemSession is how aprova acts on its own (no moderator behind it): auth
+// token services use their configured token; auth moderator ones only with
+// act_token_env. ok is false when aprova can't act alone on the service.
+func (svc *service) systemSession() (session, bool) {
+	switch {
+	case svc.cfg.Auth == "token":
+		return session{}, true
+	case svc.cfg.actToken != "":
+		return session{Token: svc.cfg.actToken}, true
+	}
+	return session{}, false
 }
 
 func actorFor(sess session, svc *service) module.Actor {

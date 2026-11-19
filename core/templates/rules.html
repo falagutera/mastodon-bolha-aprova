@@ -15,6 +15,7 @@
   <li><strong>{{$.T.rules_block_h}}</strong> {{$.T.rules_block}}</li>
   <li><strong>{{$.T.rules_conflict_h}}</strong> {{if .Escalate}}{{tf $.T "rules_conflict_escalate" (join .EscalateTo)}}{{else}}{{$.T.rules_conflict_block}}{{end}}</li>
   <li><strong>{{$.T.rules_ask_h}}</strong> {{tf $.T "rules_ask" .StaleDays}}{{if .Reset}} {{$.T.rules_reset}}{{end}}</li>
+  {{if .Unanswered}}<li><strong>{{$.T.rules_unanswered_h}}</strong> {{tf $.T "rules_unanswered" .Unanswered}}{{if .NoAutoAct}} {{tf $.T "rules_unanswered_skip" (join .NoAutoAct)}}{{end}}</li>{{end}}
   {{if .Welcome}}<li><strong>{{$.T.rules_welcome_h}}</strong> {{$.T.rules_welcome}}</li>{{end}}
   <li><strong>{{$.T.rules_bounce_h}}</strong> {{if .AutoBounce}}{{$.T.rules_bounce_auto}}{{else}}{{$.T.rules_bounce_flag}}{{end}}</li>
   {{if .RejectMail}}<li><strong>{{$.T.rules_reject_mail_h}}</strong> {{$.T.rules_reject_mail}}</li>{{end}}

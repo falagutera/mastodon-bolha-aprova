@@ -370,7 +370,7 @@ func testEnv(extra map[string]string) func(string) string {
 		"APROVA_CLIENT_ID": "cid", "APROVA_CLIENT_SECRET": "csecret", "APROVA_ENCRYPTION_KEY": strings.Repeat("k", 32),
 		"APROVA_DB_HOST": os.Getenv("APROVA_TEST_DB_HOST"), "APROVA_DB_PORT": os.Getenv("APROVA_TEST_DB_PORT"),
 		"APROVA_DB_NAME": testDBName(), "APROVA_DB_PASSWORD": "aprova", "APROVA_DB_SSLMODE": "disable",
-		"T_JORN": "svc-jorn", "T_GITLAB": "gl-admin", "T_BOT": "bot-token",
+		"T_JORN": "svc-jorn", "T_GITLAB": "gl-admin", "T_BOT": "bot-token", "T_ACT": "token-sabia",
 	}
 	for k, v := range extra {
 		base[k] = v

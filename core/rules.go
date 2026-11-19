@@ -23,6 +23,8 @@ type ruleView struct {
 	Welcome      bool
 	AutoBounce   bool
 	StaleDays    int
+	Unanswered   int      // review.reject_unanswered_hours (0 = off)
+	NoAutoAct    []string // services aprova can't act on alone, so the deadline skips them
 	RejectMail   bool
 	ApproveMail  bool
 	AppWelcome   []string // services whose app e-mails the person on approval
@@ -36,13 +38,17 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess sessio
 			RejectQuorum: p.Review.Quorum, Escalate: p.Review.OnConflict == "escalate", Reset: *p.Review.ResetOnNewInfo,
 			Checks: p.Review.RequiredChecks, Welcome: p.Mail.Welcome && s.mailer != nil,
 			AutoBounce: s.cfg.AutoRejectOnBounce, StaleDays: s.cfg.Checks.InfoStaleDays,
-			RejectMail: s.mailer != nil && p.Mail.From != "", ApproveMail: p.Mail.Approve && s.mailer != nil && p.Mail.From != ""}
+			RejectMail: s.mailer != nil && p.Mail.From != "", ApproveMail: p.Mail.Approve && s.mailer != nil && p.Mail.From != "",
+			Unanswered: p.Review.RejectUnansweredHours}
 		if rv.Name == "" {
 			rv.Name = p.id
 		}
 		for _, sid := range p.Services {
 			svc := s.services[sid]
 			rv.Services = append(rv.Services, svc.cfg.Name)
+			if _, ok := svc.systemSession(); !ok && rv.Unanswered > 0 {
+				rv.NoAutoAct = append(rv.NoAutoAct, svc.cfg.Name)
+			}
 			if svc.mod.Caps().SendsWelcome {
 				rv.AppWelcome = append(rv.AppWelcome, svc.cfg.Name)
 			} else {

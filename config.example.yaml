@@ -21,7 +21,7 @@ lang: en            # en or pt-BR
 
 # When the question e-mail to an applicant bounces (undeliverable), the request
 # is flagged "e-mail not delivered". Turn this on to also reject it on its own.
-# Off by default; never applies to auth: moderator services.
+# Off by default. On auth: moderator services only with act_token_env.
 # auto_reject_on_bounce: false
 
 # Reach a public host through a URL inside the cluster instead of the edge
@@ -47,6 +47,11 @@ services:
     # digest and the welcome e-mail can list pending sign-ups with nobody
     # signed in. Set APROVA_MAIN_DIGEST_TOKEN in .env.
     # digest_token_env: APROVA_MAIN_DIGEST_TOKEN
+    # Optional token that may approve and reject (admin:read:accounts and
+    # admin:write:accounts), for aprova's own decisions only: the
+    # reject_unanswered_hours deadline and auto_reject_on_bounce. Without it
+    # those skip this service. Moderators' decisions still use their own token.
+    # act_token_env: APROVA_MAIN_ACT_TOKEN
 
   # --- More apps: uncomment a block, add its module to `modules:` above and
   #     its id to a profile's `services:` below, and set the .env variable. ---
@@ -134,6 +139,7 @@ profiles:
       quorum: 2                            # matching votes that decide on their own (approve or reject)
       on_conflict: escalate                # approve and reject at once: escalate, or block
       reset_on_new_info: true              # the applicant's answer starts a new round
+      reject_unanswered_hours: 0           # reject on its own when a question has no answer for this long (0 = off)
       required_checks: [bot_signal, disposable_email]
     mail:
       from: "Example <aprova@example.social>"

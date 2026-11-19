@@ -3,6 +3,11 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.15.0 — 2026-11-18
+
+- **New option, off by default: `review.reject_unanswered_hours`.** When a question to the applicant has had no answer for that many hours, aprova rejects the request on its own and sends the standard rejection e-mail; the team sees the reason ("no answer to the question within N hours") on the request. The "How it works" page shows the rule.
+- **New option `act_token_env` for `auth: moderator` services:** a service-account token (admin:read:accounts, admin:write:accounts) that aprova uses only for its own decisions, the answer deadline and `auto_reject_on_bounce`. Without it, those skip the service, as before.
+
 ## 0.14.2 — 2026-11-18
 
 - The welcome e-mail is no longer skipped because the team commented on the request. Only a review or an e-mail already sent to the applicant count now: comments are internal, and when the mail server refused us for a while, a comment left in the meantime meant the person never got the welcome. Requests from the last 72 hours that missed it get it on the next pass.

@@ -597,10 +597,10 @@ func (s *Server) takeBounce(ctx context.Context, m Inbound) error {
 			return err
 		}
 		action, result := "bounce", "ok"
-		// Auto-reject only when turned on and the service acts with its own token:
-		// an auth: moderator service has no system token, so it only gets flagged.
-		if s.cfg.AutoRejectOnBounce && svc.cfg.Auth != "moderator" {
-			res, err := s.execute(ctx, tx, svc, session{}, st, "reject")
+		// Auto-reject only when turned on and aprova can act on the service alone
+		// (auth token, or act_token_env): otherwise it only gets flagged.
+		if sys, ok := svc.systemSession(); s.cfg.AutoRejectOnBounce && ok {
+			res, err := s.execute(ctx, tx, svc, sys, st, "reject")
 			if err != nil {
 				return err // transient: left unread, retried next minute
 			}

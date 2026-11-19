@@ -64,8 +64,13 @@ type ServiceConfig struct {
 	Auth           string `yaml:"auth"`       // moderator or token
 	TokenEnv       string `yaml:"token_env"`
 	DigestTokenEnv string `yaml:"digest_token_env"` // read-only token for the digest, with auth: moderator
+	// ActTokenEnv names a token that may approve and reject (admin:read:accounts and
+	// admin:write:accounts on Mastodon) for aprova's own decisions on an auth:
+	// moderator service: the unanswered-question deadline and auto_reject_on_bounce.
+	// Moderators' decisions still use their own token.
+	ActTokenEnv string `yaml:"act_token_env"`
 
-	token, digestToken string
+	token, digestToken, actToken string
 }
 
 // publicURL is the address people use: public_url, or url when that is public.
@@ -121,6 +126,10 @@ type ReviewConfig struct {
 	OnConflict     string   `yaml:"on_conflict"` // escalate or block
 	ResetOnNewInfo *bool    `yaml:"reset_on_new_info"`
 	RequiredChecks []string `yaml:"required_checks"`
+	// RejectUnansweredHours rejects a request on its own when a question to the
+	// applicant has had no answer for this many hours (0 = off). Only on services
+	// aprova can act on alone: auth token, or auth moderator with act_token_env.
+	RejectUnansweredHours int `yaml:"reject_unanswered_hours"`
 }
 
 // ProfileMail is what the applicant receives. Empty texts use the built-in ones.
@@ -298,7 +307,16 @@ func (c *Config) validate(getenv func(string) string) error {
 					return fmt.Errorf("config: service %s: %s is empty", id, s.DigestTokenEnv)
 				}
 			}
+			if s.ActTokenEnv != "" {
+				s.actToken = getenv(s.ActTokenEnv)
+				if s.actToken == "" {
+					return fmt.Errorf("config: service %s: %s is empty", id, s.ActTokenEnv)
+				}
+			}
 		case "token":
+			if s.ActTokenEnv != "" {
+				return fmt.Errorf("config: service %s: act_token_env is only for auth: moderator (auth token already acts with token_env)", id)
+			}
 			if s.TokenEnv == "" || getenv(s.TokenEnv) == "" {
 				return fmt.Errorf("config: service %s: auth token needs token_env set to a non-empty variable", id)
 			}
@@ -349,6 +367,9 @@ func (c *Config) validate(getenv func(string) string) error {
 		}
 		if r.OnConflict != "escalate" && r.OnConflict != "block" {
 			return fmt.Errorf("config: profile %s: on_conflict must be escalate or block", id)
+		}
+		if r.RejectUnansweredHours < 0 || r.RejectUnansweredHours > 24*30 {
+			return fmt.Errorf("config: profile %s: reject_unanswered_hours must be 0 (off) to 720", id)
 		}
 		if r.ResetOnNewInfo == nil {
 			yes := true
