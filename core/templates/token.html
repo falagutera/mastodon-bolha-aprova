@@ -4,8 +4,17 @@
   <h1>{{.T.token_title}}</h1>
   <p class="lede">{{.T.token_help}}</p>
 </section>
-<pre class="token">{{.Message}}</pre>
-<p class="note">{{.T.token_note}}</p>
+{{if not .Message}}<form method="post" action="/api-token" class="compose box">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  {{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
+  <fieldset><legend>{{.T.token_days}}</legend>
+  {{range $i, $d := .TokenDays}}<label class="check"><input type="radio" name="days" value="{{$d}}"{{if eq $i 0}} checked{{end}}> {{if eq $d 1}}{{$.T.token_day}}{{else}}{{$d}} {{$.T.token_days_n}}{{end}}</label>
+  {{end}}</fieldset>
+  <p class="note small">{{.T.token_days_help}}</p>
+  <button type="submit">{{.T.token_create}}</button>
+</form>
+{{else}}<pre class="token">{{.Message}}</pre>
+<p class="note">{{tf .T "token_note" (when .TokenExpires)}}</p>
 <pre>curl -H "Authorization: Bearer {{.Message}}" https://{{.Domain}}/api/v1/queue</pre>
 
 <section class="card">
@@ -39,5 +48,5 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"verdict": "reject", "body": "{{.T.token_ex_reason}}"}' $API/requests/SERVICE/ID/review</pre>
 <p class="note">{{.T.token_docs}} <a href="https://gitlab.gutocarvalho.net/open/bolha/aprova#api">gitlab.gutocarvalho.net/open/bolha/aprova#api</a></p>
-</section>
+</section>{{end}}
 {{template "foot" .}}

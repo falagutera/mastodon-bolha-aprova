@@ -132,7 +132,7 @@ Everything the pages do is in the JSON API, under `/api/v1` on the panel's own a
 
 Sign in to the panel and click **API token** in the menu. The page shows a token (`aprova_...`) once, with ready-to-use examples. Send it as `Authorization: Bearer aprova_...`.
 
-The token is a session of the moderator who made it: same role, re-checked on the instance every minute, and it expires in 8 hours. Signing out on the instance or losing the role ends it too. Tokens from the instance itself are refused, whatever app issued them, and cookies never authenticate the API. Make a new one when it expires; don't share it.
+The token is a session of the moderator who made it: same role, re-checked on the instance every minute, and it lasts 1, 7, 14 or 30 days, as the moderator picks when making it (the page shows the date). Signing out on the instance or losing the role ends it sooner. Tokens from the instance itself are refused, whatever app issued them, and cookies never authenticate the API. Make a new one when it expires; don't share it.
 
 The API follows the same rules as the pages: you see only the profiles your role sees, and can only do what the panel would let you do. Requests are only shown while pending. The module's credentials can read any account of the app, so aprova never returns an account's data once it is no longer a pending request, and ignores ids it never handled.
 

@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.18.0 — 2026-11-22
+
+- **API tokens last as long as you pick:** 1, 7, 14 or 30 days, instead of 8 hours. The token page asks first and shows the expiry date with the token. The role is still checked on the instance every minute, so signing out there or losing the role ends a token sooner.
+
 ## 0.17.0 — 2026-11-22
 
 - **New option `lookups.reputation`:** a "Reputation" card on the request page says whether the sign-up IP and the e-mail were reported to spam and abuse databases: StopForumSpam (`sfs`, no key; the IP and the e-mail's MD5, never the address itself) and AbuseIPDB (`abuseipdb`, IP only, key in `APROVA_ABUSEIPDB_KEY`). Each line gives the number of reports, the provider's confidence, the date of the last one, and, for the IP, its use (e.g. data center) and whether it is a Tor exit. It is context, never a check: home and mobile IPs are shared, so a report may be about someone else. Sources show with the same ✓/⚠/– pills; without the key, abuseipdb shows as off.

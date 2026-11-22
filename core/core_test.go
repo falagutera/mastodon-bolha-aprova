@@ -434,7 +434,7 @@ var apiTokenRe = regexp.MustCompile(`aprova_[A-Za-z0-9_-]+`)
 func (b *browser) apiToken() string {
 	b.t.Helper()
 	b.post("/api-token", url.Values{})
-	_, _, page := b.do(http.MethodPost, "/api-token", url.Values{"csrf": {b.csrf}})
+	_, _, page := b.do(http.MethodPost, "/api-token", url.Values{"csrf": {b.csrf}, "days": {"1"}})
 	tok := apiTokenRe.FindString(page)
 	if tok == "" {
 		b.t.Fatal("no API token on the page")
@@ -839,5 +839,35 @@ func TestOriginOfAPendingRequest(t *testing.T) {
 	_, out = api(t, w, sabia.apiToken(), http.MethodGet, "/api/v1/requests/bolha-us/"+id, nil)
 	if s := fmtAny(out); strings.Contains(s, "198.51.100.7") || strings.Contains(s, "origin") {
 		t.Errorf("a decided request shows its origin: %s", s)
+	}
+}
+
+// The moderator picks the API token's lifetime; nothing is made before that,
+// and only the listed lifetimes are taken.
+func TestAPITokenLifetime(t *testing.T) {
+	w := newWorld(t)
+	b := w.login("p1")
+	_, _, page := b.do(http.MethodPost, "/api-token", url.Values{"csrf": {b.csrf}})
+	if apiTokenRe.MatchString(page) || !strings.Contains(page, `name="days" value="30"`) {
+		t.Fatal("the first step shows the lifetimes and makes no token")
+	}
+	_, _, page = b.do(http.MethodPost, "/api-token", url.Values{"csrf": {b.csrf}, "days": {"365"}})
+	if apiTokenRe.MatchString(page) {
+		t.Error("a lifetime off the list made a token")
+	}
+	_, _, page = b.do(http.MethodPost, "/api-token", url.Values{"csrf": {b.csrf}, "days": {"30"}})
+	tok := apiTokenRe.FindString(page)
+	if tok == "" {
+		t.Fatal("no token for 30 days")
+	}
+	var expires time.Time
+	if err := w.srv.db.pool.QueryRow(context.Background(), `SELECT expires FROM sessions WHERE id_hash = $1`, hashID(tok)).Scan(&expires); err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Until(expires); d < 29*24*time.Hour || d > 30*24*time.Hour+time.Minute {
+		t.Errorf("expires in %v", d)
+	}
+	if status, _ := api(t, w, tok, http.MethodGet, "/api/v1/queue", nil); status != http.StatusOK {
+		t.Errorf("the token works: %d", status)
 	}
 }

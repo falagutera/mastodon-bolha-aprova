@@ -12,6 +12,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -268,21 +270,38 @@ func (s *Server) recheck(ctx context.Context, sess session) (session, bool, erro
 	return sess, true, nil
 }
 
+// apiTokenDays are the lifetimes a moderator may pick for an API token. The
+// role is still checked against the instance every minute, so losing it, or
+// signing out on the instance, ends the token before then.
+var apiTokenDays = []int{1, 7, 14, 30}
+
 // handleAPIToken makes a token for the API: a new session of the same account,
-// with the same lifetime and checks. The instance's token never leaves aprova.
+// with the same checks and the lifetime the moderator picked. Without a
+// lifetime it shows the choice and makes nothing. The instance's token never
+// leaves aprova.
 func (s *Server) handleAPIToken(w http.ResponseWriter, r *http.Request, sess session) {
+	v := s.view(r, sess, "token")
+	v.TokenDays = apiTokenDays
+	days, err := strconv.Atoi(r.PostFormValue("days"))
+	if err != nil || !slices.Contains(apiTokenDays, days) {
+		if r.PostFormValue("days") != "" {
+			v.Error = v.T["token_days_bad"]
+		}
+		s.render(w, "token.html", http.StatusOK, v)
+		return
+	}
 	id := randomToken()
 	// Keyed by the prefixed token, so the browser-cookie path (hashID of the raw
 	// cookie value) can never resolve to an API session and mint more tokens.
 	tok := session{IDHash: hashID(apiTokenPrefix + id), AccountID: sess.AccountID, Acct: sess.Acct, Role: sess.Role, RoleChecked: sess.RoleChecked,
-		Token: sess.Token, TokenHash: sess.TokenHash, CSRF: randomToken(), Expires: time.Now().Add(sessionTTL)}
+		Token: sess.Token, TokenHash: sess.TokenHash, CSRF: randomToken(), Expires: time.Now().Add(time.Duration(days) * 24 * time.Hour)}
 	if err := s.db.createSession(r.Context(), s.tokenBox, tok); err != nil {
 		log.Printf("api token: %v", err)
 		s.renderError(w, r, http.StatusServiceUnavailable, "unavailable")
 		return
 	}
-	v := s.view(r, sess, "token")
 	v.Message = apiTokenPrefix + id
+	v.TokenExpires = tok.Expires
 	s.render(w, "token.html", http.StatusOK, v)
 }
 

@@ -366,6 +366,9 @@ type viewData struct {
 	Filters  []string
 	DM       bool // this moderator is a recipient of the bot's messages
 	DMOff    bool
+	// The API token page: the lifetimes to pick from, and when the token made expires.
+	TokenDays    []int
+	TokenExpires time.Time
 }
 
 var flashes = []string{"prefs", "approved", "rejected", "reviewed", "escalated", "deescalated", "answered", "commented", "asked", "gone", "already", "bulk", "mail_failed", "no_mail", "edited"}
