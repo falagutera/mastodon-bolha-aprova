@@ -13,6 +13,27 @@
 {{if $r.Escalated}}<p class="alert">{{.T.escalated_note}}</p>{{end}}
 {{if $r.Awaiting}}<p class="flash">{{.T.awaiting_note}} {{$r.Awaiting}}</p>{{end}}
 {{if $r.Undeliverable}}<p class="alert">{{.T.undeliverable_note}}</p>{{end}}
+{{with $r.Origin}}<section class="box lookup origin">
+<h3>{{$.T.origin}}</h3>
+<dl class="facts">
+  <dt>{{$.T.origin_ip}}</dt><dd class="mono">{{.IP}}</dd>
+  {{if .Place}}<dt>{{$.T.origin_place}}</dt><dd>{{.Place}}</dd>{{end}}
+  {{if .ASN}}<dt>{{$.T.origin_network}}</dt><dd>{{.ASN}}{{if .Network}} · {{.Network}}{{end}}{{if .Route}} <span class="note mono">{{.Route}}</span>{{end}}</dd>{{end}}
+  {{if .Hostname}}<dt>{{$.T.origin_hostname}}</dt><dd class="mono">{{.Hostname}}</dd>{{end}}
+  {{if .Timezone}}<dt>{{$.T.origin_timezone}}</dt><dd>{{.Timezone}}</dd>{{end}}
+  <dt>{{$.T.same_ip}}</dt><dd>{{if .SameIPDown}}<span class="note">{{$.T.same_ip_down}}</span>{{else if .SameIPSeen}}{{if eq .SameIPTotal 0}}{{$.T.same_ip_none}}{{else}}<span class="counts">{{range .SameIPList}}<span class="st same-{{.Status}}">{{.N}} {{t $.T (printf "same_ip_%s" .Status)}}</span>{{end}}</span>{{if .SameIPMore}} {{$.T.same_ip_more}}{{end}}{{if .SameIPURL}} · <a href="{{.SameIPURL}}" rel="noopener noreferrer" target="_blank">{{$.T.same_ip_open}} ↗</a>{{end}}{{end}}{{else}}<span class="note">—</span>{{end}}</dd>
+</dl>
+{{if .InfoDown}}<p class="note small">{{$.T.origin_info_down}}</p>{{end}}
+<p class="note small">{{$.T.origin_help}}{{if .InfoURL}} <a href="{{.InfoURL}}" rel="noopener noreferrer" target="_blank">{{$.T.origin_info_open}} ↗</a>{{end}}</p>
+</section>{{end}}
+{{if $r.Breaches}}<section class="box lookup breaches">
+<h3>{{.T.breaches}}</h3>
+<ul class="breach-list">
+{{range $r.Breaches}}  <li><span class="who">{{t $.T (printf "provider_%s" .Provider)}}</span>: {{if .Down}}<span class="note">{{$.T.breaches_down}}</span>{{else if eq .Count 0}}<span class="breach-none">{{$.T.breaches_none}}</span>{{else}}<strong>{{.Count}} {{$.T.breaches_count}}</strong>{{if .Oldest}}, {{$.T.breaches_since}} {{.Oldest}}{{if ne .Oldest .Newest}} {{$.T.breaches_to}} {{.Newest}}{{end}}{{end}}
+    <small class="breach-names">{{range $i, $n := .Names}}{{if $i}}, {{end}}{{$n}}{{end}}{{if gt .More 0}} +{{.More}} {{$.T.breaches_more}}{{end}}</small>{{end}}</li>
+{{end}}</ul>
+<p class="note small">{{.T.breaches_help}}</p>
+</section>{{end}}
 {{else}}
 <p class="flash">{{.T.decided}}: {{if $r.Decision}}{{t .T (printf "decision_%s" $r.Decision)}}{{else}}{{.T.decision_gone}}{{end}}{{if $r.DecidedBy}} · @{{$r.DecidedBy}}{{end}}</p>
 {{end}}

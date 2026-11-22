@@ -3,6 +3,13 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.16.0 — 2026-11-22
+
+- **Where the sign-up came from:** on Mastodon services, the request page shows the sign-up IP and how many other accounts the instance saw at it, by status (suspended, disabled, limited, pending, active), with a link to the instance's admin search. Counts only: aprova never shows who the other accounts are. A new alert, "IP used by accounts the instance acted against", is shown when one of them was suspended, disabled or limited; it never blocks the quorum.
+- **New option `lookups.ip_info`:** the place, network (ASN) and reverse DNS of the IP, from an ip-info service such as ip.gutocarvalho.net.
+- **New option `lookups.breaches`:** the e-mail's history in public breaches, from Have I Been Pwned (`hibp`, key in `APROVA_HIBP_KEY`) and XposedOrNot (`xon`). Shown as context: an address in old breaches is old and real.
+- Lookups run only on the page of a pending request, in parallel and within 3 seconds, and are kept in memory for a day; aprova still stores no IP addresses. Both options are off by default.
+
 ## 0.15.0 — 2026-11-18
 
 - **New option, off by default: `review.reject_unanswered_hours`.** When a question to the applicant has had no answer for that many hours, aprova rejects the request on its own and sends the standard rejection e-mail; the team sees the reason ("no answer to the question within N hours") on the request. The "How it works" page shows the rule.

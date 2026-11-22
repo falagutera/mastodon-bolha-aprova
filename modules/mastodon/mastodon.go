@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -29,6 +31,7 @@ var (
 const (
 	responseLimit = 8 << 20
 	maxPages      = 10
+	sameIPLimit   = 100
 )
 
 type mastodon struct {
@@ -83,13 +86,58 @@ type adminAccount struct {
 	Approved      bool      `json:"approved"`
 	InviteRequest string    `json:"invite_request"`
 	Domain        *string   `json:"domain"` // null for local accounts
+	IP            string    `json:"ip"`
+	IPs           []struct {
+		IP string `json:"ip"`
+	} `json:"ips"`
+	Suspended bool `json:"suspended"`
+	Disabled  bool `json:"disabled"`
+	Silenced  bool `json:"silenced"`
+}
+
+// publicIP returns s when it is a public unicast address, else "". It is the
+// only way an IP from the instance reaches a URL or a page.
+func publicIP(s string) string {
+	a, err := netip.ParseAddr(strings.TrimSpace(s))
+	if err != nil || !a.IsGlobalUnicast() || a.IsPrivate() || a.Zone() != "" {
+		return ""
+	}
+	return a.Unmap().String()
+}
+
+// signUpIP is the address the instance reports for the account: the latest, or
+// the first of the list (it holds the sign-up IP).
+func (a adminAccount) signUpIP() string {
+	if ip := publicIP(a.IP); ip != "" {
+		return ip
+	}
+	for _, x := range a.IPs {
+		if ip := publicIP(x.IP); ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
+
+func (a adminAccount) status() string {
+	switch {
+	case a.Suspended:
+		return "suspended"
+	case a.Disabled:
+		return "disabled"
+	case a.Silenced:
+		return "silenced"
+	case !a.Approved:
+		return "pending"
+	}
+	return "active"
 }
 
 // pending is a local account not approved yet. Remote accounts have no approval.
 func (a adminAccount) pending() bool { return a.Domain == nil && !a.Approved }
 
 func (a adminAccount) request() module.Request {
-	return module.Request{ID: a.ID, Username: a.Username, Email: a.Email, Reason: a.InviteRequest, Created: a.CreatedAt}
+	return module.Request{ID: a.ID, Username: a.Username, Email: a.Email, Reason: a.InviteRequest, Created: a.CreatedAt, IP: a.signUpIP()}
 }
 
 func (m *mastodon) do(ctx context.Context, token, method, url string) (*http.Response, error) {
@@ -210,4 +258,36 @@ func (m *mastodon) Approve(ctx context.Context, a module.Actor, id string) error
 
 func (m *mastodon) Reject(ctx context.Context, a module.Actor, id string) error {
 	return m.act(ctx, a, id, "reject")
+}
+
+// SameIP counts the other local accounts the instance saw at ip, by status. One
+// page only: a crowd of accounts on one IP is the signal, the exact size isn't.
+func (m *mastodon) SameIP(ctx context.Context, a module.Actor, id, ip string) (module.IPMatches, error) {
+	ip = publicIP(ip)
+	if ip == "" || !idPattern.MatchString(id) {
+		return module.IPMatches{}, module.ErrGone
+	}
+	token, err := m.tokenFor(a)
+	if err != nil {
+		return module.IPMatches{}, err
+	}
+	resp, err := m.do(ctx, token, http.MethodGet, m.base+"/api/v1/admin/accounts?local=true&limit="+fmt.Sprint(sameIPLimit)+"&ip="+url.QueryEscape(ip))
+	if err != nil {
+		return module.IPMatches{}, err
+	}
+	defer resp.Body.Close()
+	if err := status(resp); err != nil {
+		return module.IPMatches{}, err
+	}
+	var items []adminAccount
+	if err := json.NewDecoder(io.LimitReader(resp.Body, responseLimit)).Decode(&items); err != nil {
+		return module.IPMatches{}, err
+	}
+	out := module.IPMatches{Counts: map[string]int{}, More: len(items) >= sameIPLimit, AdminURL: m.base + "/admin/accounts?ip=" + url.QueryEscape(ip)}
+	for _, it := range items {
+		if it.ID != id && it.Domain == nil {
+			out.Counts[it.status()]++
+		}
+	}
+	return out, nil
 }

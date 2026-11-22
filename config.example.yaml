@@ -196,3 +196,9 @@ profiles:
 checks:
   disposable_domains: [tinyhost.shop]      # also matched against the e-mail domain's MX hosts
   info_stale_days: 7
+
+# Context on the page of one pending request. Each lookup is off unless set.
+# lookups:
+#   ip_info: https://ip.gutocarvalho.net   # place and network of the sign-up IP (GET /api/v1/<ip>)
+#   breaches: [hibp, xon]                  # the e-mail in public breaches; hibp needs APROVA_HIBP_KEY.
+#                                          # They receive the applicant's e-mail: say so in your privacy policy.

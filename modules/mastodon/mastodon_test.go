@@ -176,3 +176,67 @@ func TestPagesStayOnTheInstance(t *testing.T) {
 		t.Skip("test server not on 127.0.0.1")
 	}
 }
+
+// The sign-up IP comes from the instance as data: only a public address is kept.
+func TestSignUpIP(t *testing.T) {
+	for raw, want := range map[string]string{
+		`"ip":"198.51.100.7","ips":[]`:                                   "198.51.100.7",
+		`"ip":null,"ips":[{"ip":"10.0.0.1"},{"ip":"2001:db8::5"}]`:       "2001:db8::5",
+		`"ip":"127.0.0.1","ips":[]`:                                      "",
+		`"ip":"198.51.100.7/../../x","ips":[{"ip":"<script>"}]`:          "",
+		`"ip":"::ffff:198.51.100.8","ips":[]`:                            "198.51.100.8",
+		`"ips":[{"ip":"fe80::1%eth0"},{"ip":"192.168.1.10"},{"ip":"x"}]`: "",
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, `{"id":"7","username":"u","approved":false,"domain":null,%s}`, raw)
+		}))
+		m, _ := New(module.Config{URL: srv.URL, Auth: "token", Token: "t", Client: srv.Client()})
+		q, _, err := m.Get(t.Context(), module.Actor{}, "7")
+		srv.Close()
+		if err != nil || q.IP != want {
+			t.Errorf("%s: got %q (%v), want %q", raw, q.IP, err, want)
+		}
+	}
+}
+
+func TestSameIPCountsOnly(t *testing.T) {
+	var asked string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = r.URL.String()
+		fmt.Fprint(w, `[{"id":"7","username":"me","approved":false,"domain":null},
+			{"id":"8","username":"spam1","approved":true,"suspended":true,"domain":null},
+			{"id":"9","username":"spam2","approved":true,"silenced":true,"domain":null},
+			{"id":"10","username":"fam","approved":true,"domain":null},
+			{"id":"11","username":"new","approved":false,"domain":null},
+			{"id":"12","username":"far","approved":true,"domain":"remote.example"}]`)
+	}))
+	defer srv.Close()
+	mod, _ := New(module.Config{URL: srv.URL, Auth: "token", Token: "t", Client: srv.Client()})
+	m := mod.(module.SameIP)
+	got, err := m.SameIP(t.Context(), module.Actor{}, "7", "198.51.100.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{"suspended": 1, "silenced": 1, "active": 1, "pending": 1}
+	if fmt.Sprint(got.Counts) != fmt.Sprint(want) || got.More {
+		t.Errorf("counts: %v", got.Counts)
+	}
+	if asked != "/api/v1/admin/accounts?local=true&limit=100&ip=198.51.100.7" {
+		t.Errorf("asked %s", asked)
+	}
+	if got.AdminURL != srv.URL+"/admin/accounts?ip=198.51.100.7" {
+		t.Errorf("admin url %s", got.AdminURL)
+	}
+	if raw, _ := json.Marshal(got); strings.Contains(string(raw), "spam1") {
+		t.Error("names of other accounts leaked")
+	}
+	asked = ""
+	for _, bad := range [][2]string{{"7", "10.0.0.1"}, {"7", "x&local=false"}, {"../7", "198.51.100.7"}, {"7", ""}} {
+		if _, err := m.SameIP(t.Context(), module.Actor{}, bad[0], bad[1]); !errors.Is(err, module.ErrGone) {
+			t.Errorf("%v: %v", bad, err)
+		}
+	}
+	if asked != "" {
+		t.Errorf("a bad id or IP reached the instance: %s", asked)
+	}
+}

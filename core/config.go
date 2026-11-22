@@ -26,6 +26,7 @@ type Config struct {
 	Services map[string]*ServiceConfig `yaml:"services"`
 	Profiles map[string]*Profile       `yaml:"profiles"`
 	Checks   ChecksConfig              `yaml:"checks"`
+	Lookups  LookupsConfig             `yaml:"lookups"`
 	// AutoRejectOnBounce rejects a request on its own when the question e-mail
 	// bounces (undeliverable). Off by default: a bounce only flags the request.
 	// Never applies to auth: moderator services (no system token to act with).
@@ -250,6 +251,9 @@ func (c *Config) validate(getenv func(string) string) error {
 	}
 	if c.SMTPTLS != "starttls" && c.SMTPTLS != "tls" {
 		return errors.New("APROVA_SMTP_TLS must be starttls or tls")
+	}
+	if err := c.Lookups.validate(getenv); err != nil {
+		return err
 	}
 	if c.TeamChat != "" {
 		if u, err := url.Parse(c.TeamChat); err != nil || u.Scheme != "https" || u.Host == "" {

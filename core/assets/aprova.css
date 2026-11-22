@@ -114,3 +114,14 @@ pre.token{border-color:var(--accent);background:var(--accent-soft)}
 .rulecard li{margin:7px 0;color:var(--text-dim)}
 .rulecard li strong{color:var(--text)}
 @media (max-width:760px){.request{grid-template-columns:1fr}.side{border-left:0;padding-left:0}.tabs .who{margin-left:0}}
+
+/* request page: where the sign-up came from, and the e-mail's breach history */
+.lookup .facts{margin:6px 0}
+.lookup .mono{font-family:var(--mono);font-size:.9rem}
+.same-suspended,.same-disabled,.same-silenced{color:var(--danger);border-color:currentColor}
+.same-pending{color:var(--warn);border-color:currentColor}
+.breach-list{list-style:none;padding:0;margin:6px 0}
+.breach-list li{padding:6px 0;border-bottom:1px solid var(--border)}
+.breach-list li:last-child{border-bottom:0}
+.breach-names{display:block;color:var(--text-dim);overflow-wrap:anywhere}
+.breach-none{color:var(--text-dim)}

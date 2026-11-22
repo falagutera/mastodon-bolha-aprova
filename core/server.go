@@ -50,6 +50,7 @@ type Server struct {
 	tokenBox *box
 	stateBox *box
 	checks   *checker
+	lookups  *lookups
 	mailer   Mailer
 	inbox    Inbox
 	bounce   Inbox // the sender mailbox, read for delivery-status notifications
@@ -68,6 +69,8 @@ type Options struct {
 	MX     func(ctx context.Context, domain string) ([]*net.MX, error)
 	// Now replaces the clock, for tests.
 	Now func() time.Time
+	// HIBPURL and XONURL replace the breach providers' base URLs, for tests.
+	HIBPURL, XONURL string
 }
 
 // New builds the server: it opens the database and every enabled service.
@@ -94,6 +97,16 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 		checks: newChecker(cfg.Checks), mailer: opt.Mailer, mm: &mattermost{client: client}, now: opt.Now}
 	if opt.MX != nil {
 		s.checks.lookupMX = opt.MX
+	}
+	s.lookups = newLookups(cfg.Lookups, client, Version)
+	if opt.HIBPURL != "" {
+		s.lookups.hibpURL = opt.HIBPURL
+	}
+	if opt.XONURL != "" {
+		s.lookups.xonURL = opt.XONURL
+	}
+	if cfg.Lookups.hibpKey == "" && cfg.Lookups.hibpWanted {
+		log.Printf("lookups: hibp is listed but APROVA_HIBP_KEY is empty; asking the others only")
 	}
 	s.inbox = opt.Inbox
 	if s.inbox == nil && cfg.IMAPHost != "" {

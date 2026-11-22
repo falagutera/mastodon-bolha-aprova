@@ -800,3 +800,44 @@ func TestBotFindsTheTeamByRoleAndKeepsToTheHours(t *testing.T) {
 		t.Errorf("%d lookups", lookups)
 	}
 }
+
+// The request page shows where a pending sign-up came from and how many other
+// accounts used the IP, never who they are; a decided request shows none of it.
+func TestOriginOfAPendingRequest(t *testing.T) {
+	w := newWorld(t)
+	id, spam, fam := uniq(), uniq(), uniq()
+	w.bolha.add(id, "ana", "ana@example.org", "hello")
+	w.bolha.add(spam, "spammer-name", "s@example.org", "")
+	w.bolha.add(fam, "family-name", "f@example.org", "")
+	w.bolha.mu.Lock()
+	w.bolha.accounts[id].IP = "198.51.100.7"
+	w.bolha.accounts[spam].IP, w.bolha.accounts[spam].Approved, w.bolha.accounts[spam].Suspended = "198.51.100.7", true, true
+	w.bolha.accounts[fam].IP, w.bolha.accounts[fam].Approved = "198.51.100.7", true
+	w.bolha.mu.Unlock()
+
+	p1 := w.login("p1")
+	_, _, page := p1.do(http.MethodGet, "/r/bolha-us/"+id, nil)
+	for _, want := range []string{"198.51.100.7", "1 suspended", "1 active", "/admin/accounts?ip=198.51.100.7", strs("en")["check_ip_shared"]} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	if strings.Contains(page, "spammer-name") || strings.Contains(page, "family-name") {
+		t.Error("the page names accounts that aren't pending")
+	}
+	_, out := api(t, w, p1.apiToken(), http.MethodGet, "/api/v1/requests/bolha-us/"+id, nil)
+	if s := fmtAny(out); !strings.Contains(s, `"same_ip":{"active":1,"suspended":1}`) || strings.Contains(s, "spammer-name") {
+		t.Errorf("api: %s", s)
+	}
+	// Shown, never required: the failed ip_shared check doesn't block the quorum.
+	if s := fmtAny(out); !strings.Contains(s, `"chec`) || strings.Contains(s, `"checks_ok":false`) {
+		t.Errorf("tally: %s", s)
+	}
+
+	sabia := w.login("sabia")
+	sabia.post("/r/bolha-us/"+id+"/approve", url.Values{})
+	_, out = api(t, w, sabia.apiToken(), http.MethodGet, "/api/v1/requests/bolha-us/"+id, nil)
+	if s := fmtAny(out); strings.Contains(s, "198.51.100.7") || strings.Contains(s, "origin") {
+		t.Errorf("a decided request shows its origin: %s", s)
+	}
+}

@@ -45,6 +45,8 @@ type acct struct {
 	CreatedAt     time.Time `json:"created_at"`
 	Approved      bool      `json:"approved"`
 	InviteRequest string    `json:"invite_request"`
+	IP            string    `json:"ip,omitempty"`
+	Suspended     bool      `json:"suspended"`
 }
 
 type instance struct {
@@ -144,8 +146,9 @@ func newInstance(t *testing.T, serviceToken string) *instance {
 			return
 		}
 		list := []*acct{}
+		ip := r.URL.Query().Get("ip")
 		for _, a := range in.accounts {
-			if !a.Approved {
+			if (ip == "" && !a.Approved) || (ip != "" && a.IP == ip) {
 				list = append(list, a)
 			}
 		}

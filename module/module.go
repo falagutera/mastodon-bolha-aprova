@@ -20,8 +20,30 @@ type Request struct {
 	Email    string
 	Reason   string // the applicant's own words, if the app asks for them
 	Created  time.Time
+	// IP the sign-up came from, when the app records it. A module sets it only
+	// to a valid public address (netip.ParseAddr), never to anything else.
+	IP string
 	// Checks a module adds from what only the app knows. The core adds its own.
 	Checks []Check
+}
+
+// SameIP is optional: a module whose app can list the accounts that used an IP.
+// The core calls it only for the page of one pending request.
+type SameIP interface {
+	// SameIP counts the other accounts (not id) seen at ip, by status. It must
+	// return counts only, never who they are: they are not pending requests.
+	SameIP(ctx context.Context, a Actor, id, ip string) (IPMatches, error)
+}
+
+// IPMatches is what an app knows about other accounts at one IP.
+type IPMatches struct {
+	// Counts by status: suspended, disabled, silenced, pending, active.
+	Counts map[string]int
+	// More is true when the app had more accounts than one page.
+	More bool
+	// AdminURL opens the app's own admin search for the IP, where moderators
+	// with access to the app can see the accounts.
+	AdminURL string
 }
 
 // Check is an automatic signal shown next to the reviews. A failed required check
