@@ -191,7 +191,7 @@ var errLookup = errors.New("lookup failed")
 // fetch GETs u and decodes JSON into out. found is false on 404; HIBP answers
 // 404 for "no breaches".
 func (l *lookups) fetch(ctx context.Context, u string, header http.Header, out any) (found bool, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil) // #nosec G704 -- host from the config (https, validated) or a fixed provider; IP and e-mail are escaped into path/query
 	if err != nil {
 		return false, errLookup
 	}
@@ -200,7 +200,7 @@ func (l *lookups) fetch(ctx context.Context, u string, header http.Header, out a
 	}
 	req.Header.Set("User-Agent", l.ua)
 	req.Header.Set("Accept", "application/json")
-	resp, err := l.client.Do(req)
+	resp, err := l.client.Do(req) // #nosec G704 -- same request as above
 	if err != nil {
 		return false, errLookup
 	}
