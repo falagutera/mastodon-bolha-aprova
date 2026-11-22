@@ -3,6 +3,11 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.19.0 — 2026-11-22
+
+- **CleanTalk in the Reputation card:** `cleantalk` in `lookups.reputation` (key in `APROVA_CLEANTALK_KEY`, from the Block Lists / spam check plan) checks the IP and the e-mail's SHA-256, never the address. It adds the network type (hosting, paid VPN, public proxy, Tor) and marks throwaway e-mail services.
+- **Unavailable sources never break the page:** any lookup that fails (outage, rate limit, a paid plan unpaid or expired, an unexpected answer) shows as "unavailable right now" on its card and source pill; the rest of the page and the other sources are unaffected. When a paid provider turns its key down, the log says so, at most once an hour per provider.
+
 ## 0.18.0 — 2026-11-22
 
 - **API tokens last as long as you pick:** 1, 7, 14 or 30 days, instead of 8 hours. The token page asks first and shows the expiry date with the token. The role is still checked on the instance every minute, so signing out there or losing the role ends a token sooner.

@@ -3,8 +3,10 @@ package core
 import (
 	"context"
 	"crypto/md5" // #nosec G501 -- StopForumSpam takes the MD5 of the e-mail, so the address itself is never sent
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"log"
 	"math"
 	"net/http"
 	"net/netip"
@@ -26,9 +28,13 @@ import (
 const (
 	providerSFS   = "sfs"       // StopForumSpam: IP and e-mail hash, no key
 	providerAbuse = "abuseipdb" // AbuseIPDB: IP, needs APROVA_ABUSEIPDB_KEY
+	providerCT    = "cleantalk" // CleanTalk Block Lists: IP and e-mail hash, needs APROVA_CLEANTALK_KEY
 )
 
-var reputationProviders = []string{providerSFS, providerAbuse}
+var reputationProviders = []string{providerSFS, providerAbuse, providerCT}
+
+// reputationKeyEnv names the variable holding each paid provider's key.
+var reputationKeyEnv = map[string]string{providerAbuse: "APROVA_ABUSEIPDB_KEY", providerCT: "APROVA_CLEANTALK_KEY"}
 
 // abuseMaxAge is how far back AbuseIPDB reports count, in days.
 const abuseMaxAge = 90
@@ -40,8 +46,9 @@ type repView struct {
 	Down     bool    `json:"down,omitempty"` // no answer (limit, outage)
 	IP       *repHit `json:"ip,omitempty"`
 	Email    *repHit `json:"email,omitempty"`
-	Usage    string  `json:"usage,omitempty"` // AbuseIPDB's usage type, e.g. Data Center/Web Hosting/Transit
-	Tor      bool    `json:"tor,omitempty"`   // a Tor exit node
+	Usage    string  `json:"usage,omitempty"`   // AbuseIPDB's usage type, e.g. Data Center/Web Hosting/Transit
+	Tor      bool    `json:"tor,omitempty"`     // a Tor exit node
+	Network  string  `json:"network,omitempty"` // CleanTalk's network type: hosting, paid_vpn or public
 }
 
 // repHit is what a provider knows about one value.
@@ -51,6 +58,8 @@ type repHit struct {
 	Reporters int    `json:"reporters,omitempty"` // distinct reporters, AbuseIPDB only
 	Score     int    `json:"score,omitempty"`     // the provider's confidence, 0-100
 	Last      string `json:"last,omitempty"`      // the last report, YYYY-MM-DD
+	// Disposable is CleanTalk's mark for a throwaway e-mail service.
+	Disposable bool `json:"disposable,omitempty"`
 }
 
 // Listed reports whether any value is listed.
@@ -116,8 +125,10 @@ func (l *lookups) reputation(ctx context.Context, ip, email string) []repView {
 	slices.SortFunc(out, func(a, b repView) int {
 		return slices.Index(l.cfg.Reputation, a.Provider) - slices.Index(l.cfg.Reputation, b.Provider)
 	})
-	if l.cfg.abuseWanted && !slices.Contains(l.cfg.Reputation, providerAbuse) && ip != "" {
-		out = append(out, repView{Provider: providerAbuse, Off: true})
+	for _, p := range l.cfg.repOff {
+		if ip != "" || p != providerAbuse {
+			out = append(out, repView{Provider: p, Off: true})
+		}
 	}
 	if len(out) == 0 {
 		return nil
@@ -125,7 +136,13 @@ func (l *lookups) reputation(ctx context.Context, ip, email string) []repView {
 	return out
 }
 
-func (l *lookups) rep(ctx context.Context, provider, ip, email string) repView {
+func (l *lookups) rep(ctx context.Context, provider, ip, email string) (r repView) {
+	defer func() {
+		if p := recover(); p != nil {
+			log.Printf("lookups: %s: %v", provider, p)
+			r = repView{Provider: provider, Down: true}
+		}
+	}()
 	key := provider + " " + ip + " " + email
 	if v, ok, hit := l.get(key); hit {
 		if !ok {
@@ -133,19 +150,20 @@ func (l *lookups) rep(ctx context.Context, provider, ip, email string) repView {
 		}
 		return v.(repView)
 	}
-	var r repView
 	var err error
 	switch provider {
 	case providerSFS:
 		r, err = l.sfs(ctx, ip, email)
 	case providerAbuse:
 		r, err = l.abuseipdb(ctx, ip)
+	case providerCT:
+		r, err = l.cleantalk(ctx, ip, email)
 	default:
 		err = errLookup
 	}
 	r.Provider = provider
 	if err != nil {
-		l.put(key, nil, false)
+		l.failed(provider, key, err)
 		return repView{Provider: provider, Down: true}
 	}
 	l.put(key, r, true)
@@ -187,7 +205,10 @@ func (l *lookups) sfs(ctx context.Context, ip, email string) (repView, error) {
 		EmailHash *sfsHit `json:"emailhash"`
 	}
 	found, err := l.fetch(ctx, l.sfsURL+"/api?"+q.Encode(), nil, &out)
-	if err != nil || !found || out.Success != 1 {
+	if err != nil {
+		return repView{}, err
+	}
+	if !found || out.Success != 1 {
 		return repView{}, errLookup
 	}
 	r := repView{IP: out.IP.hit(), Email: out.EmailHash.hit()}
@@ -199,7 +220,7 @@ func (l *lookups) sfs(ctx context.Context, ip, email string) (repView, error) {
 
 // abuseipdb asks AbuseIPDB's check endpoint (API v2).
 func (l *lookups) abuseipdb(ctx context.Context, ip string) (repView, error) {
-	if l.cfg.abuseKey == "" || ip == "" {
+	if l.cfg.repKeys[providerAbuse] == "" || ip == "" {
 		return repView{}, errLookup
 	}
 	var out struct {
@@ -213,8 +234,11 @@ func (l *lookups) abuseipdb(ctx context.Context, ip string) (repView, error) {
 		} `json:"data"`
 	}
 	q := url.Values{"ipAddress": {ip}, "maxAgeInDays": {strconv.Itoa(abuseMaxAge)}}
-	found, err := l.fetch(ctx, l.abuseURL+"/api/v2/check?"+q.Encode(), http.Header{"Key": {l.cfg.abuseKey}}, &out)
-	if err != nil || !found || out.Data == nil {
+	found, err := l.fetch(ctx, l.abuseURL+"/api/v2/check?"+q.Encode(), http.Header{"Key": {l.cfg.repKeys[providerAbuse]}}, &out)
+	if err != nil {
+		return repView{}, err
+	}
+	if !found || out.Data == nil {
 		return repView{}, errLookup
 	}
 	d := out.Data
@@ -223,6 +247,75 @@ func (l *lookups) abuseipdb(ctx context.Context, ip string) (repView, error) {
 		h.Last = d.Last[:10]
 	}
 	return repView{IP: h, Usage: clip(d.Usage), Tor: d.Tor}, nil
+}
+
+// ctRecord is one value in CleanTalk's spam_check answer.
+type ctRecord struct {
+	Appears    int     `json:"appears"`
+	Frequency  int     `json:"frequency"`
+	SpamRate   float64 `json:"spam_rate"`
+	Updated    string  `json:"updated"`
+	Network    string  `json:"network_type"`
+	Disposable int     `json:"disposable_email"`
+}
+
+func (c *ctRecord) hit() *repHit {
+	if c == nil {
+		return nil
+	}
+	h := &repHit{Listed: c.Appears > 0, Reports: c.Frequency, Score: score(c.SpamRate * 100), Disposable: c.Disposable == 1}
+	if c.Appears > 0 && len(c.Updated) >= 10 {
+		h.Last = c.Updated[:10]
+	}
+	return h
+}
+
+// cleantalk asks CleanTalk's Block Lists (spam_check). The e-mail goes as
+// email_<SHA-256>, which CleanTalk answers the same as the address.
+func (l *lookups) cleantalk(ctx context.Context, ip, email string) (repView, error) {
+	key := l.cfg.repKeys[providerCT]
+	if key == "" {
+		return repView{}, errLookup
+	}
+	q := url.Values{"method_name": {"spam_check"}, "auth_key": {key}}
+	var emailKey string
+	if ip != "" {
+		q.Set("ip", ip)
+	}
+	if email != "" {
+		sum := sha256.Sum256([]byte(email))
+		emailKey = "email_" + hex.EncodeToString(sum[:])
+		q.Set("email", emailKey)
+	}
+	var out struct {
+		Data    map[string]*ctRecord `json:"data"`
+		ErrorNo int                  `json:"error_no"`
+	}
+	found, err := l.fetch(ctx, l.cleantalkURL+"/?"+q.Encode(), nil, &out)
+	switch {
+	case err != nil:
+		return repView{}, err
+	case out.ErrorNo != 0:
+		return repView{}, errRefused
+	case !found || out.Data == nil:
+		return repView{}, errLookup
+	}
+	r := repView{}
+	if ip != "" {
+		r.IP = out.Data[ip].hit()
+		if c := out.Data[ip]; c != nil {
+			switch c.Network {
+			case "tor":
+				r.Tor = true
+			case "hosting", "paid_vpn", "public":
+				r.Network = c.Network
+			}
+		}
+	}
+	if emailKey != "" {
+		r.Email = out.Data[emailKey].hit()
+	}
+	return r, nil
 }
 
 func score(f float64) int {
@@ -244,10 +337,17 @@ func (c *LookupsConfig) validateReputation(getenv func(string) string) error {
 		}
 		seen[p] = true
 	}
-	c.abuseKey = getenv("APROVA_ABUSEIPDB_KEY")
-	c.abuseWanted = seen[providerAbuse]
-	if c.abuseWanted && c.abuseKey == "" {
-		c.Reputation = slices.DeleteFunc(c.Reputation, func(p string) bool { return p == providerAbuse })
+	// A paid provider without its key is left out instead of refusing to
+	// start: the key may come later. The page shows it as off.
+	c.repKeys, c.repOff = map[string]string{}, nil
+	for p, env := range reputationKeyEnv {
+		c.repKeys[p] = getenv(env)
 	}
+	for _, p := range c.Reputation {
+		if _, paid := reputationKeyEnv[p]; paid && c.repKeys[p] == "" {
+			c.repOff = append(c.repOff, p)
+		}
+	}
+	c.Reputation = slices.DeleteFunc(c.Reputation, func(p string) bool { return slices.Contains(c.repOff, p) })
 	return nil
 }

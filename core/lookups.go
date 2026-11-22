@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"slices"
@@ -50,13 +51,17 @@ type LookupsConfig struct {
 	// the applicant's e-mail: say so in the instance's privacy policy.
 	Breaches []string `yaml:"breaches"`
 	// Reputation lists the spam and abuse databases to ask: sfs
-	// (StopForumSpam, IP and the e-mail's MD5, no key) and abuseipdb
-	// (AbuseIPDB, IP only, needs APROVA_ABUSEIPDB_KEY).
-	Reputation  []string `yaml:"reputation"`
-	hibpKey     string
-	hibpWanted  bool
-	abuseKey    string
-	abuseWanted bool
+	// (StopForumSpam, IP and the e-mail's MD5, no key), abuseipdb
+	// (AbuseIPDB, IP only, needs APROVA_ABUSEIPDB_KEY) and cleantalk
+	// (CleanTalk Block Lists, IP and the e-mail's SHA-256, needs
+	// APROVA_CLEANTALK_KEY).
+	Reputation []string `yaml:"reputation"`
+	hibpKey    string
+	hibpWanted bool
+	// repKeys holds the keys of the reputation providers that need one;
+	// repOff lists those the config names but whose key is missing.
+	repKeys map[string]string
+	repOff  []string
 }
 
 type ipInfo struct {
@@ -144,16 +149,18 @@ type lookups struct {
 	client *http.Client
 	ua     string
 	// Base URLs, swapped in tests.
-	hibpURL, xonURL, sfsURL, abuseURL string
+	hibpURL, xonURL, sfsURL, abuseURL, cleantalkURL string
 
-	mu    sync.Mutex
-	cache map[string]cached
+	mu        sync.Mutex
+	cache     map[string]cached
+	refusedAt map[string]time.Time
 }
 
 func newLookups(cfg LookupsConfig, client *http.Client, version string) *lookups {
 	return &lookups{cfg: cfg, client: client, ua: "aprova/" + version + " (+https://gitlab.gutocarvalho.net/open/bolha/aprova)",
 		hibpURL: "https://haveibeenpwned.com", xonURL: "https://api.xposedornot.com",
-		sfsURL: "https://api.stopforumspam.org", abuseURL: "https://api.abuseipdb.com", cache: map[string]cached{}}
+		sfsURL: "https://api.stopforumspam.org", abuseURL: "https://api.abuseipdb.com",
+		cleantalkURL: "https://api.cleantalk.org", cache: map[string]cached{}, refusedAt: map[string]time.Time{}}
 }
 
 func (l *lookups) enabled() bool {
@@ -199,6 +206,34 @@ func (l *lookups) put(key string, v any, ok bool) {
 // URL, and with it the applicant's e-mail.
 var errLookup = errors.New("lookup failed")
 
+// errRefused is a provider turning the key down: wrong key, plan unpaid or
+// expired. The page shows it like any other outage ("unavailable right now");
+// the log tells the operator, at most once an hour per provider.
+var errRefused = errors.New("lookup refused")
+
+const refusedLogEvery = time.Hour
+
+// refused logs that provider turned the key down, at most once an hour.
+func (l *lookups) refused(provider string) {
+	l.mu.Lock()
+	last := l.refusedAt[provider]
+	if time.Since(last) < refusedLogEvery {
+		l.mu.Unlock()
+		return
+	}
+	l.refusedAt[provider] = time.Now()
+	l.mu.Unlock()
+	log.Printf("lookups: %s refused the API key (wrong key, or the plan is unpaid or expired); shown as unavailable", provider)
+}
+
+// failed records a failed lookup, noting a refused key.
+func (l *lookups) failed(provider, key string, err error) {
+	if errors.Is(err, errRefused) {
+		l.refused(provider)
+	}
+	l.put(key, nil, false)
+}
+
 // fetch GETs u and decodes JSON into out. found is false on 404; HIBP answers
 // 404 for "no breaches".
 func (l *lookups) fetch(ctx context.Context, u string, header http.Header, out any) (found bool, err error) {
@@ -219,7 +254,16 @@ func (l *lookups) fetch(ctx context.Context, u string, header http.Header, out a
 	switch {
 	case resp.StatusCode == http.StatusNotFound:
 		return false, nil
+	case resp.StatusCode == http.StatusUnauthorized, resp.StatusCode == http.StatusPaymentRequired, resp.StatusCode == http.StatusForbidden:
+		return false, errRefused
 	case resp.StatusCode != http.StatusOK:
+		// CleanTalk turns a key down with 501 and an error_no in the body.
+		var e struct {
+			No int `json:"error_no"`
+		}
+		if json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&e) == nil && e.No != 0 {
+			return false, errRefused
+		}
 		return false, errLookup
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, lookupBodyLimit)).Decode(out); err != nil {
@@ -304,7 +348,13 @@ func (l *lookups) breaches(ctx context.Context, email string) []breachView {
 	return out
 }
 
-func (l *lookups) breach(ctx context.Context, provider, email string) breachView {
+func (l *lookups) breach(ctx context.Context, provider, email string) (b breachView) {
+	defer func() {
+		if p := recover(); p != nil {
+			log.Printf("lookups: %s: %v", provider, p)
+			b = breachView{Provider: provider, Down: true}
+		}
+	}()
 	key := provider + " " + email
 	if v, ok, hit := l.get(key); hit {
 		if !ok {
@@ -312,7 +362,6 @@ func (l *lookups) breach(ctx context.Context, provider, email string) breachView
 		}
 		return v.(breachView)
 	}
-	var b breachView
 	var err error
 	switch provider {
 	case providerHIBP:
@@ -324,7 +373,7 @@ func (l *lookups) breach(ctx context.Context, provider, email string) breachView
 	}
 	b.Provider = provider
 	if err != nil {
-		l.put(key, nil, false)
+		l.failed(provider, key, err)
 		return breachView{Provider: provider, Down: true}
 	}
 	l.put(key, b, true)

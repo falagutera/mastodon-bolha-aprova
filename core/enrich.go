@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"log"
 	"sync"
 
 	"gitlab.gutocarvalho.net/open/bolha/aprova/module"
@@ -25,6 +26,14 @@ func (s *Server) enrich(ctx context.Context, sess session, svc *service, q modul
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if p := recover(); p != nil {
+					log.Printf("lookups: origin: %v", p)
+					if origin != nil {
+						origin.SameIPDown, origin.SameIPSeen = true, false
+					}
+				}
+			}()
 			origin = s.lookups.origin(ctx, q.IP)
 			if origin == nil {
 				return
@@ -49,7 +58,7 @@ func (s *Server) enrich(ctx context.Context, sess session, svc *service, q modul
 			breaches = s.lookups.breaches(ctx, q.Email)
 		}()
 	}
-	if len(s.lookups.cfg.Reputation) > 0 || s.lookups.cfg.abuseWanted {
+	if len(s.lookups.cfg.Reputation) > 0 || len(s.lookups.cfg.repOff) > 0 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

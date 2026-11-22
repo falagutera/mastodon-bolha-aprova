@@ -42,6 +42,7 @@ func TestEveryPageRenders(t *testing.T) {
 				Breaches: []breachView{{Provider: providerHIBP, Count: 14, Names: []string{"<b>x</b>", "B"}, Oldest: "2012", Newest: "2024"}, {Provider: providerXON, Down: true}, {Provider: providerXON}, {Provider: providerHIBP, Off: true}},
 				Reputation: []repView{{Provider: providerSFS, IP: &repHit{Listed: true, Reports: 84, Score: 95, Last: "2026-11-20"}, Email: &repHit{}, Tor: true},
 					{Provider: providerAbuse, IP: &repHit{Listed: true, Reports: 1, Reporters: 1, Score: 12, Last: "2026-11-01"}, Usage: "<b>x</b>"},
+					{Provider: providerCT, IP: &repHit{Listed: true, Reports: 4, Score: 40}, Email: &repHit{Disposable: true}, Network: "hosting", Tor: true},
 					{Provider: providerSFS, Down: true}, {Provider: providerAbuse, Off: true}}},
 			{Service: "s", ID: "1", Pending: true, Origin: &originView{IP: "203.0.113.9", SameIPDown: true}},
 			{Service: "s", ID: "1", Pending: true, Origin: &originView{IP: "203.0.113.9", SameIPSeen: true}},
