@@ -151,3 +151,18 @@ func TestLookupsConfig(t *testing.T) {
 		t.Errorf("%v %q", err, c.IPInfo)
 	}
 }
+
+// A provider the config lists without its key still shows, as off.
+func TestBreachProviderWithoutKeyShowsOff(t *testing.T) {
+	srv, _ := fakeProviders(t)
+	cfg := LookupsConfig{Breaches: []string{providerHIBP, providerXON}}
+	if err := cfg.validate(func(string) string { return "" }); err != nil {
+		t.Fatal(err)
+	}
+	l := newLookups(cfg, srv.Client(), "test")
+	l.xonURL = srv.URL
+	got := l.breaches(context.Background(), "old@example.org")
+	if len(got) != 2 || got[0].Provider != providerXON || got[0].Count != 2 || got[1].Provider != providerHIBP || !got[1].Off {
+		t.Errorf("%+v", got)
+	}
+}

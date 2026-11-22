@@ -116,7 +116,9 @@ pre.token{border-color:var(--accent);background:var(--accent-soft)}
 @media (max-width:760px){.request{grid-template-columns:1fr}.side{border-left:0;padding-left:0}.tabs .who{margin-left:0}}
 
 /* request page: where the sign-up came from, and the e-mail's breach history */
-.lookup .facts{margin:6px 0}
+.lookup .facts{margin:6px 0;display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;align-items:baseline}
+.lookup .facts dd{margin:0}
+.sources{margin:10px 0 4px}
 .lookup .mono{font-family:var(--mono);font-size:.9rem}
 .same-suspended,.same-disabled,.same-silenced{color:var(--danger);border-color:currentColor}
 .same-pending{color:var(--warn);border-color:currentColor}
@@ -125,3 +127,7 @@ pre.token{border-color:var(--accent);background:var(--accent-soft)}
 .breach-list li:last-child{border-bottom:0}
 .breach-names{display:block;color:var(--text-dim);overflow-wrap:anywhere}
 .breach-none{color:var(--text-dim)}
+.src{display:inline-block;font-family:var(--mono);font-size:.74rem;font-weight:600;border-radius:999px;border:1px solid currentColor;padding:1px 9px;margin:2px 2px 0 0}
+.src-ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--surface))}
+.src-down{color:var(--warn)}
+.src-off{color:var(--text-faint)}

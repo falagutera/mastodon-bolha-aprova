@@ -77,14 +77,16 @@ type originView struct {
 	ASN      string `json:"asn,omitempty"`
 	Network  string `json:"network,omitempty"`
 	Route    string `json:"route,omitempty"`
-	InfoURL  string `json:"info_url,omitempty"` // the ip-info page for the IP
+	InfoURL  string `json:"info_url,omitempty"`  // the ip-info page for the IP
+	InfoHost string `json:"info_host,omitempty"` // the ip-info service, shown as a source
 	InfoDown bool   `json:"info_down,omitempty"`
 	// Other accounts at the IP, counts only (rule 1: not who they are).
 	SameIP     map[string]int `json:"same_ip,omitempty"`
 	SameIPMore bool           `json:"same_ip_more,omitempty"`
 	SameIPDown bool           `json:"same_ip_down,omitempty"`
 	SameIPURL  string         `json:"same_ip_url,omitempty"`
-	SameIPSeen bool           `json:"same_ip_seen"` // the app answered
+	SameIPSeen bool           `json:"same_ip_seen"`       // the app answered
+	Instance   string         `json:"instance,omitempty"` // the app asked about the IP, shown as a source
 }
 
 // SameIPTotal is the number of other accounts at the IP.
@@ -115,6 +117,7 @@ type statusCount struct {
 // breachView is one provider's answer about the e-mail.
 type breachView struct {
 	Provider string   `json:"provider"`
+	Off      bool     `json:"off,omitempty"`  // listed in the config, but its key is missing
 	Down     bool     `json:"down,omitempty"` // no answer (limit, outage)
 	Count    int      `json:"count"`
 	Names    []string `json:"names,omitempty"` // the oldest first, at most breachNamesMax
@@ -228,7 +231,7 @@ func (l *lookups) origin(ctx context.Context, ip string) *originView {
 	if l.cfg.IPInfo == "" {
 		return o
 	}
-	o.InfoURL = l.cfg.IPInfo + "/?ip=" + url.QueryEscape(ip)
+	o.InfoURL, o.InfoHost = l.cfg.IPInfo+"/?ip="+url.QueryEscape(ip), hostOf(l.cfg.IPInfo)
 	key := "ip " + ip
 	v, ok, hit := l.get(key)
 	if !hit {
@@ -286,6 +289,11 @@ func (l *lookups) breaches(ctx context.Context, email string) []breachView {
 		}()
 	}
 	wg.Wait()
+	// A provider listed without its key still shows, as off: moderators see
+	// every source the config names, and which ones answered.
+	if l.cfg.hibpWanted && !slices.Contains(l.cfg.Breaches, providerHIBP) {
+		out = append(out, breachView{Provider: providerHIBP, Off: true})
+	}
 	return out
 }
 

@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.16.1 — 2026-11-22
+
+- The "where it came from" and "e-mail history" cards list their sources with a status pill: ✓ answered, ⚠ didn't answer, – off (a breach provider listed without its API key). Labels and values sit side by side, so the cards take half the height.
+
 ## 0.16.0 — 2026-11-22
 
 - **Where the sign-up came from:** on Mastodon services, the request page shows the sign-up IP and how many other accounts the instance saw at it, by status (suspended, disabled, limited, pending, active), with a link to the instance's admin search. Counts only: aprova never shows who the other accounts are. A new alert, "IP used by accounts the instance acted against", is shown when one of them was suspended, disabled or limited; it never blocks the quorum.

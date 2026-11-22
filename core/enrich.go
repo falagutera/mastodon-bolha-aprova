@@ -32,6 +32,7 @@ func (s *Server) enrich(ctx context.Context, sess session, svc *service, q modul
 			if !ok {
 				return
 			}
+			origin.Instance = svc.cfg.Name
 			m, err := finder.SameIP(ctx, actorFor(sess, svc), q.ID, origin.IP)
 			if err != nil {
 				origin.SameIPDown = true
@@ -40,7 +41,7 @@ func (s *Server) enrich(ctx context.Context, sess session, svc *service, q modul
 			origin.SameIP, origin.SameIPMore, origin.SameIPURL, origin.SameIPSeen = m.Counts, m.More, m.AdminURL, true
 		}()
 	}
-	if len(s.lookups.cfg.Breaches) > 0 && q.Email != "" {
+	if (len(s.lookups.cfg.Breaches) > 0 || s.lookups.cfg.hibpWanted) && q.Email != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
