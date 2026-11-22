@@ -108,6 +108,9 @@ func New(ctx context.Context, cfg *Config, opt Options) (*Server, error) {
 	if cfg.Lookups.hibpKey == "" && cfg.Lookups.hibpWanted {
 		log.Printf("lookups: hibp is listed but APROVA_HIBP_KEY is empty; asking the others only")
 	}
+	if cfg.Lookups.abuseKey == "" && cfg.Lookups.abuseWanted {
+		log.Printf("lookups: abuseipdb is listed but APROVA_ABUSEIPDB_KEY is empty; asking the others only")
+	}
 	s.inbox = opt.Inbox
 	if s.inbox == nil && cfg.IMAPHost != "" {
 		s.inbox = &imapInbox{host: cfg.IMAPHost, port: cfg.IMAPPort, user: cfg.IMAPUser, pass: cfg.IMAPPass}

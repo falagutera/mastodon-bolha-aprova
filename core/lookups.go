@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"slices"
 	"sort"
@@ -49,9 +48,15 @@ type LookupsConfig struct {
 	// Breaches lists the e-mail breach providers to ask: hibp (Have I Been
 	// Pwned, needs APROVA_HIBP_KEY) and xon (XposedOrNot, no key). They receive
 	// the applicant's e-mail: say so in the instance's privacy policy.
-	Breaches   []string `yaml:"breaches"`
-	hibpKey    string
-	hibpWanted bool
+	Breaches []string `yaml:"breaches"`
+	// Reputation lists the spam and abuse databases to ask: sfs
+	// (StopForumSpam, IP and the e-mail's MD5, no key) and abuseipdb
+	// (AbuseIPDB, IP only, needs APROVA_ABUSEIPDB_KEY).
+	Reputation  []string `yaml:"reputation"`
+	hibpKey     string
+	hibpWanted  bool
+	abuseKey    string
+	abuseWanted bool
 }
 
 type ipInfo struct {
@@ -139,7 +144,7 @@ type lookups struct {
 	client *http.Client
 	ua     string
 	// Base URLs, swapped in tests.
-	hibpURL, xonURL string
+	hibpURL, xonURL, sfsURL, abuseURL string
 
 	mu    sync.Mutex
 	cache map[string]cached
@@ -147,10 +152,13 @@ type lookups struct {
 
 func newLookups(cfg LookupsConfig, client *http.Client, version string) *lookups {
 	return &lookups{cfg: cfg, client: client, ua: "aprova/" + version + " (+https://gitlab.gutocarvalho.net/open/bolha/aprova)",
-		hibpURL: "https://haveibeenpwned.com", xonURL: "https://api.xposedornot.com", cache: map[string]cached{}}
+		hibpURL: "https://haveibeenpwned.com", xonURL: "https://api.xposedornot.com",
+		sfsURL: "https://api.stopforumspam.org", abuseURL: "https://api.abuseipdb.com", cache: map[string]cached{}}
 }
 
-func (l *lookups) enabled() bool { return l.cfg.IPInfo != "" || len(l.cfg.Breaches) > 0 }
+func (l *lookups) enabled() bool {
+	return l.cfg.IPInfo != "" || len(l.cfg.Breaches) > 0 || len(l.cfg.Reputation) > 0
+}
 
 func (l *lookups) get(key string) (any, bool, bool) {
 	l.mu.Lock()
@@ -222,11 +230,10 @@ func (l *lookups) fetch(ctx context.Context, u string, header http.Header, out a
 
 // origin looks the IP up. It returns nil when ip is not a public address.
 func (l *lookups) origin(ctx context.Context, ip string) *originView {
-	a, err := netip.ParseAddr(ip)
-	if err != nil || !a.IsGlobalUnicast() || a.IsPrivate() {
+	ip, ok := publicAddr(ip)
+	if !ok {
 		return nil
 	}
-	ip = a.Unmap().String()
 	o := &originView{IP: ip}
 	if l.cfg.IPInfo == "" {
 		return o
@@ -431,5 +438,5 @@ func (c *LookupsConfig) validate(getenv func(string) string) error {
 	if c.hibpWanted && c.hibpKey == "" {
 		c.Breaches = slices.DeleteFunc(c.Breaches, func(p string) bool { return p == providerHIBP })
 	}
-	return nil
+	return c.validateReputation(getenv)
 }

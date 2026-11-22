@@ -14,11 +14,12 @@ const checkIPShared = "ip_shared"
 // enrich runs the lookups for the page of one pending request, in parallel and
 // within lookupTimeout. Whatever doesn't answer in time is shown as unavailable.
 // Only buildRequest calls it, and only while the request is pending (rule 1).
-func (s *Server) enrich(ctx context.Context, sess session, svc *service, q module.Request) (*originView, []breachView) {
+func (s *Server) enrich(ctx context.Context, sess session, svc *service, q module.Request) (*originView, []breachView, []repView) {
 	ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
 	defer cancel()
 	var origin *originView
 	var breaches []breachView
+	var rep []repView
 	var wg sync.WaitGroup
 	if q.IP != "" {
 		wg.Add(1)
@@ -48,6 +49,13 @@ func (s *Server) enrich(ctx context.Context, sess session, svc *service, q modul
 			breaches = s.lookups.breaches(ctx, q.Email)
 		}()
 	}
+	if len(s.lookups.cfg.Reputation) > 0 || s.lookups.cfg.abuseWanted {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rep = s.lookups.reputation(ctx, q.IP, q.Email)
+		}()
+	}
 	wg.Wait()
-	return origin, breaches
+	return origin, breaches, rep
 }

@@ -202,3 +202,5 @@ checks:
 #   ip_info: https://ip.gutocarvalho.net   # place and network of the sign-up IP (GET /api/v1/<ip>)
 #   breaches: [hibp, xon]                  # the e-mail in public breaches; hibp needs APROVA_HIBP_KEY.
 #                                          # They receive the applicant's e-mail: say so in your privacy policy.
+#   reputation: [sfs, abuseipdb]           # spam/abuse reports: StopForumSpam (IP + the e-mail's MD5, no key)
+#                                          # and AbuseIPDB (IP only, needs APROVA_ABUSEIPDB_KEY).

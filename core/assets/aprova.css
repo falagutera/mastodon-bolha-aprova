@@ -131,3 +131,4 @@ pre.token{border-color:var(--accent);background:var(--accent-soft)}
 .src-ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--surface))}
 .src-down{color:var(--warn)}
 .src-off{color:var(--text-faint)}
+.rep-list li.rep-bad strong{color:var(--danger)}

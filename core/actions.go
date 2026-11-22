@@ -43,8 +43,9 @@ type requestView struct {
 	Decision      string         `json:"decision"`
 	DecidedBy     string         `json:"decided_by"`
 	Checks        []module.Check `json:"checks"`
-	Origin        *originView    `json:"origin,omitempty"`   // where the sign-up came from
-	Breaches      []breachView   `json:"breaches,omitempty"` // the e-mail in public breaches
+	Origin        *originView    `json:"origin,omitempty"`     // where the sign-up came from
+	Breaches      []breachView   `json:"breaches,omitempty"`   // the e-mail in public breaches
+	Reputation    []repView      `json:"reputation,omitempty"` // the IP and e-mail in spam and abuse databases
 	Reviews       []reviewView   `json:"reviews"`
 	Tally         tally          `json:"tally"`
 	Comments      []comment      `json:"comments"`
@@ -124,7 +125,7 @@ func (s *Server) buildRequest(ctx context.Context, sess session, svc *service, i
 	}
 	if rv.Pending {
 		rv.Checks = s.checks.run(ctx, q, caps.NoReason)
-		rv.Origin, rv.Breaches = s.enrich(ctx, sess, svc, q)
+		rv.Origin, rv.Breaches, rv.Reputation = s.enrich(ctx, sess, svc, q)
 		if o := rv.Origin; o != nil && o.SameIPSeen {
 			// Shown, never required: it is not one of coreChecks.
 			bad := o.SameIP["suspended"] + o.SameIP["disabled"] + o.SameIP["silenced"]
