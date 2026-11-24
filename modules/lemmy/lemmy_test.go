@@ -25,6 +25,7 @@ type app struct {
 	admin    *int64
 	verified bool
 	accepted bool
+	deleted  bool // purged (Lemmy 0.19 keeps the person, deleted and banned, and the application)
 	created  time.Time
 }
 
@@ -72,7 +73,7 @@ func view(a *app) map[string]any {
 	return map[string]any{
 		"registration_application": ra,
 		"creator_local_user":       map[string]any{"email": a.email, "email_verified": a.verified, "accepted_application": a.accepted},
-		"creator":                  map[string]any{"id": a.personID, "name": a.name},
+		"creator":                  map[string]any{"id": a.personID, "name": a.name, "deleted": a.deleted, "banned": a.deleted},
 	}
 }
 
@@ -92,11 +93,14 @@ func newFake(t *testing.T) (*fake, *httptest.Server) {
 		}
 		json.Unmarshal(raw, &in)
 		pid := strconv.FormatInt(in.PersonID, 10)
-		if _, ok := f.apps[pid]; !ok {
+		a, ok := f.apps[pid]
+		if !ok {
 			lemmyErr(w, "couldnt_find_person")
 			return
 		}
-		delete(f.apps, pid) // the local user goes, and its application with it
+		// Lemmy 0.19.21 purge_person: profile and e-mail wiped, person kept as
+		// deleted and banned, the application left undecided (still "unread").
+		a.deleted, a.email = true, ""
 		f.rejected[pid] = true
 		json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
@@ -195,6 +199,13 @@ func TestRejectPurgesWithoutReason(t *testing.T) {
 	}
 	if _, pending, err := m.Get(t.Context(), module.Actor{}, "7"); pending || err != nil {
 		t.Errorf("after purge: pending=%v err=%v", pending, err)
+	}
+	// The application is still undecided in Lemmy: it must leave the list anyway.
+	if list, err := m.Pending(t.Context(), module.Actor{}); err != nil || len(list) != 0 {
+		t.Errorf("after purge the list has %d: %v", len(list), err)
+	}
+	if err := m.Reject(t.Context(), module.Actor{}, "7"); !errors.Is(err, module.ErrGone) {
+		t.Errorf("second reject: %v", err)
 	}
 }
 

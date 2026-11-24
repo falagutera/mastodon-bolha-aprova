@@ -78,12 +78,19 @@ type application struct {
 		Admin               bool    `json:"admin"`
 	} `json:"creator_local_user"`
 	Creator struct {
-		ID   int64  `json:"id"`
-		Name string `json:"name"`
+		ID      int64  `json:"id"`
+		Name    string `json:"name"`
+		Deleted bool   `json:"deleted"`
 	} `json:"creator"`
 }
 
-func (a application) pending() bool { return a.RegistrationApplication.AdminID == nil }
+// pending: undecided and the account still there. A purge (how aprova
+// rejects) keeps the person and its application, undecided, and only marks the
+// person deleted and banned (Lemmy 0.19): without the deleted check a rejected
+// request stays in the list for good. An account its owner deleted is gone too.
+func (a application) pending() bool {
+	return a.RegistrationApplication.AdminID == nil && !a.Creator.Deleted
+}
 
 func (a application) request() module.Request {
 	r := module.Request{
@@ -244,9 +251,10 @@ func (l *lemmy) Approve(ctx context.Context, _ module.Actor, id string) error {
 }
 
 // Reject purges the applicant instead of denying: Lemmy 0.19 always e-mails a
-// denied applicant, while a purge sends nothing. It deletes the local user (and
-// with it the application) and keeps the name banned, so the same name can't
-// apply again. No reason is sent: the modlog is public.
+// denied applicant, while a purge sends nothing. It wipes the profile, posts
+// and e-mail and keeps the person, deleted and banned, so the same name can't
+// apply again; the application stays undecided, which pending() reads as gone.
+// No reason is sent: the modlog is public.
 func (l *lemmy) Reject(ctx context.Context, _ module.Actor, id string) error {
 	if !idPattern.MatchString(id) {
 		return module.ErrGone

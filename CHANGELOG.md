@@ -3,6 +3,10 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.19.1 — 2026-11-24
+
+- **Lemmy: a rejected request leaves the list.** Rejecting purges the applicant, and Lemmy keeps the purged person (deleted and banned) with its application still undecided, so the request stayed in the queue after the rejection. An application whose account is deleted now counts as decided; rejecting it again does nothing.
+
 ## 0.19.0 — 2026-11-22
 
 - **CleanTalk in the Reputation card:** `cleantalk` in `lookups.reputation` (key in `APROVA_CLEANTALK_KEY`, from the Block Lists / spam check plan) checks the IP and the e-mail's SHA-256, never the address. It adds the network type (hosting, paid VPN, public proxy, Tor) and marks throwaway e-mail services.
