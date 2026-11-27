@@ -66,6 +66,45 @@ func TestEveryPageRenders(t *testing.T) {
 	}
 }
 
+// The rules page renders in both languages, with tabs only when there is more
+// than one profile, and only the selected profile's card.
+func TestRulesPageRenders(t *testing.T) {
+	tmpl, err := parseTemplates(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := ruleView{ID: "a", Name: "<b>x</b>", Services: []string{"s1", "s2"}, Approve: []string{"r"}, EscalateTo: []string{"r"}, Quorum: 2, RejectQuorum: 2,
+		Escalate: true, Checks: []string{checkBotSignal}, Welcome: true, Unanswered: 24, NoAutoAct: []string{"s2"}, RejectMail: true, ApproveMail: true,
+		AppWelcome: []string{"s1"}, NoWelcome: []string{"s2", "s3"}}
+	b := ruleView{ID: "b", Name: "B", Services: []string{"s3"}, AutoBounce: true, AppWelcome: []string{"s3", "s4"}, NoWelcome: []string{"s5"}}
+	for _, lang := range supportedLangs {
+		for _, c := range []struct {
+			rules    []ruleView
+			selected string
+			tabs     bool
+		}{{[]ruleView{a, b}, "b", true}, {[]ruleView{a}, "a", false}, {nil, "", false}} {
+			v := viewData{T: strs(lang), Lang: lang, Version: "test", Domain: "aprova.example", Acct: "ana", Role: "r", Nav: "rules", Rules: c.rules, Selected: c.selected}
+			var out bytes.Buffer
+			if err := tmpl.ExecuteTemplate(&out, "rules.html", v); err != nil {
+				t.Fatalf("%s: %v", lang, err)
+			}
+			page := out.String()
+			if strings.Contains(page, "<b>x</b>") {
+				t.Errorf("%s: HTML not escaped", lang)
+			}
+			if strings.Contains(page, `class="proftabs"`) != c.tabs {
+				t.Errorf("%s, %d profiles: tabs = %v", lang, len(c.rules), !c.tabs)
+			}
+			if n := strings.Count(page, `class="card rulecard"`); n != min(len(c.rules), 1) {
+				t.Errorf("%s: %d profile cards", lang, n)
+			}
+			if strings.Contains(page, "rules_") || strings.Contains(page, "—") {
+				t.Errorf("%s: raw key or dash on the page", lang)
+			}
+		}
+	}
+}
+
 // Every key used with t in the templates exists in every language.
 func TestTranslationsHaveTheSameKeys(t *testing.T) {
 	en := translations["en"]

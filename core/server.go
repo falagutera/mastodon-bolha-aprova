@@ -357,6 +357,7 @@ type viewData struct {
 	TeamChat string
 	Releases template.HTML
 	Rules    []ruleView
+	Selected string // the profile tab open on the rules page
 	Message  string
 	Profiles []profileView
 	Filter   string

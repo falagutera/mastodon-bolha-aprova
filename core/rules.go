@@ -11,6 +11,7 @@ var welcomeRun sync.Mutex
 // ruleView is how one profile decides, as the "how it works" page shows it.
 // Everything comes from the running config, so the page never drifts from it.
 type ruleView struct {
+	ID           string // profile id, the tab's ?profile=
 	Name         string
 	Services     []string
 	Approve      []string
@@ -34,7 +35,7 @@ type ruleView struct {
 func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess session) {
 	v := s.view(r, sess, "rules")
 	for _, p := range s.visibleProfiles(sess.Role) {
-		rv := ruleView{Name: p.Name, Approve: p.Approve, EscalateTo: p.EscalateTo, Quorum: p.Review.Quorum,
+		rv := ruleView{ID: p.id, Name: p.Name, Approve: p.Approve, EscalateTo: p.EscalateTo, Quorum: p.Review.Quorum,
 			RejectQuorum: p.Review.Quorum, Escalate: p.Review.OnConflict == "escalate", Reset: *p.Review.ResetOnNewInfo,
 			Checks: p.Review.RequiredChecks, Welcome: p.Mail.Welcome && s.mailer != nil,
 			AutoBounce: s.cfg.AutoRejectOnBounce, StaleDays: s.cfg.Checks.InfoStaleDays,
@@ -56,6 +57,16 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request, sess sessio
 			}
 		}
 		v.Rules = append(v.Rules, rv)
+	}
+	// One tab per profile: ?profile=<id> picks it; a missing or unknown one (or one
+	// this role can't see, which is never in v.Rules) falls back to the first.
+	if len(v.Rules) > 0 {
+		v.Selected = v.Rules[0].ID
+		for _, rv := range v.Rules {
+			if rv.ID == r.URL.Query().Get("profile") {
+				v.Selected = rv.ID
+			}
+		}
 	}
 	s.render(w, "rules.html", http.StatusOK, v)
 }

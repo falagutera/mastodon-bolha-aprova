@@ -166,6 +166,31 @@ func TestRulesPage(t *testing.T) {
 	if !strings.Contains(body, `href="/how-it-works"`) {
 		t.Error("no menu entry")
 	}
+	// p1 sees only the bolha profile: no tabs, and asking for gcn still shows bolha.
+	if strings.Contains(body, `class="proftabs"`) {
+		t.Error("tabs shown for a single profile")
+	}
+	if _, _, body := p1.do("GET", "/how-it-works?profile=gcn", nil); !strings.Contains(body, "Profile bolha") || strings.Contains(body, "Profile gcn") {
+		t.Error("?profile= shows a profile the role can't see")
+	}
+	// The founder sees both: one tab each, one profile at a time, the first by default.
+	guto := w.login("guto")
+	_, _, body = guto.do("GET", "/how-it-works", nil)
+	for _, want := range []string{`href="/how-it-works?profile=bolha" aria-current="page"`, `href="/how-it-works?profile=gcn">`, "Profile bolha"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("default tab without %q", want)
+		}
+	}
+	if strings.Contains(body, "Profile gcn") {
+		t.Error("more than one profile on the page")
+	}
+	_, _, body = guto.do("GET", "/how-it-works?profile=gcn", nil)
+	if !strings.Contains(body, `href="/how-it-works?profile=gcn" aria-current="page"`) || !strings.Contains(body, "Profile gcn") || strings.Contains(body, "Profile bolha") {
+		t.Error("?profile=gcn doesn't open the gcn tab")
+	}
+	if !strings.Contains(body, "gitlab also sends its own welcome e-mail.") {
+		t.Error("one service not in the singular")
+	}
 	anon := &browser{t: t, w: w}
 	if code, _, _ := anon.do("GET", "/how-it-works", nil); code == 200 {
 		t.Error("rules page open to the public")

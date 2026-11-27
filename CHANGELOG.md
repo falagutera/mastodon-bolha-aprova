@@ -3,6 +3,12 @@
 All notable changes to aprova. Versions follow [SemVer](https://semver.org/); images are
 published as `registry.gutocarvalho.net/images/aprova:<version>-<build>`.
 
+## 0.20.0 — 2026-11-27
+
+- **"How it works" has one tab per profile.** Instead of every profile in one long list, the page shows a tab for each profile the role can see (with its number of services) and one profile at a time; `/how-it-works?profile=<id>` opens a tab directly, so it can be linked. A role that sees one profile gets no tabs. Plain links, no script.
+- The profile's services show as tags under its name.
+- Texts: one service now reads in the singular ("gitlab also sends its own welcome e-mail"), and the "E-mail not delivered" line lost its dash.
+
 ## 0.19.1 — 2026-11-24
 
 - **Lemmy: a rejected request leaves the list.** Rejecting purges the applicant, and Lemmy keeps the purged person (deleted and banned) with its application still undecided, so the request stayed in the queue after the rejection. An application whose account is deleted now counts as decided; rejecting it again does nothing.
